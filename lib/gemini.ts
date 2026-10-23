@@ -202,6 +202,19 @@ export const scriptSchema: Schema = {
   required: ["criteria", "scenes"],
 };
 
+export const rewriteSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    spokenLine: { type: Type.STRING },
+    caption: { type: Type.STRING },
+    covers: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+    },
+  },
+  required: ["spokenLine", "caption", "covers"],
+};
+
 export const videoScriptSchema: Schema = {
   type: Type.OBJECT,
   properties: {

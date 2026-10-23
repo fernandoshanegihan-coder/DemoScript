@@ -52,6 +52,11 @@ export type Scene = {
   startSeconds?: number;
 };
 
+/** The parts of a scene the student can change without another generation. */
+export type ScenePatch = Partial<
+  Pick<Scene, "spokenLine" | "caption" | "description" | "covers">
+>;
+
 export type Recording = {
   blob: Blob;
   mimeType: string;

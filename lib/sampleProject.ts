@@ -83,7 +83,7 @@ const drafts: Draft[] = [
     shotId: "shot-3",
     actionId: "shot-3",
     spokenLine:
-      "There's a lot more I want to build: saved halls, a friend group so we can agree on one place, and predictions for the lunch rush. Those are next, once the core loop is solid.",
+      "There's a lot more I want to build: saved halls, a friend group so we can agree on one place, and predictions for the lunch rush. Those are next, once the core loop is solid. I also want a weekly email that names the quietest hall on campus each Friday, because that is the kind of thing nobody wants to work out themselves.",
     caption: "What's next: saved halls, group picks, rush predictions.",
     description: "The map view, with the 'Near you' panel in the corner.",
     covers: [],

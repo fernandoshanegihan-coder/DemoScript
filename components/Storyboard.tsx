@@ -4,8 +4,9 @@ import { useState } from "react";
 import ClockBar from "./ClockBar";
 import CriteriaPanel from "./CriteriaPanel";
 import SceneCard from "./SceneCard";
+import { cutNote } from "@/lib/cuts";
 import { formatClock } from "@/lib/timing";
-import type { Criterion, Scene, Shot } from "@/lib/types";
+import type { Criterion, Scene, ScenePatch, Shot } from "@/lib/types";
 
 type Props = {
   scenes: Scene[];
@@ -15,6 +16,12 @@ type Props = {
   redNotes?: Record<string, string>;
   activeSceneId?: string | null;
   onSeekScene?: (scene: Scene) => void;
+  statedMinutes?: number | null;
+  editable?: boolean;
+  rewritingSceneId?: string | null;
+  onUpdateScene?: (sceneId: string, patch: ScenePatch) => void;
+  onRewriteScene?: (sceneId: string) => void;
+  onDeleteScene?: (sceneId: string) => void;
 };
 
 export default function Storyboard({
@@ -25,6 +32,12 @@ export default function Storyboard({
   redNotes,
   activeSceneId = null,
   onSeekScene,
+  statedMinutes = null,
+  editable = false,
+  rewritingSceneId = null,
+  onUpdateScene,
+  onRewriteScene,
+  onDeleteScene,
 }: Props) {
   const [copied, setCopied] = useState(false);
   const used = scenes.reduce((sum, scene) => sum + scene.seconds, 0);
@@ -65,8 +78,18 @@ export default function Storyboard({
         </button>
       </div>
 
-      <ClockBar used={used} limit={lengthSeconds} />
+      <ClockBar
+        used={used}
+        limit={lengthSeconds}
+        statedMinutes={statedMinutes}
+      />
+
       <div className="border-t border-hairline">
+        {scenes.length === 0 ? (
+          <p className="py-6 text-[13px] leading-relaxed text-muted">
+            Every scene is gone. Make the script again to start over.
+          </p>
+        ) : null}
         {scenes.map((scene, index) => (
           <SceneCard
             key={scene.id}
@@ -78,9 +101,24 @@ export default function Storyboard({
               .filter((label): label is string => Boolean(label))}
             active={scene.id === activeSceneId}
             onSeek={onSeekScene ? () => onSeekScene(scene) : undefined}
+            cutNote={cutNote(scene.seconds, scene.covers, lengthSeconds)}
+            editable={editable}
+            rewriting={rewritingSceneId === scene.id}
+            onUpdate={
+              onUpdateScene
+                ? (patch) => onUpdateScene(scene.id, patch)
+                : undefined
+            }
+            onRewrite={
+              onRewriteScene ? () => onRewriteScene(scene.id) : undefined
+            }
+            onDelete={
+              onDeleteScene ? () => onDeleteScene(scene.id) : undefined
+            }
           />
         ))}
       </div>
+
       {criteria.length > 0 ? (
         <CriteriaPanel criteria={criteria} scenes={scenes} redNotes={redNotes} />
       ) : null}

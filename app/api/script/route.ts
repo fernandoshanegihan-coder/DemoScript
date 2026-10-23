@@ -3,10 +3,17 @@ import {
   SCRIPT_FALLBACK_MODEL,
   SCRIPT_MODEL,
   generateJson,
+  rewriteSchema,
   scriptSchema,
 } from "@/lib/gemini";
 import { normalizeCriteria } from "@/lib/criteria";
-import { scriptInstruction, scriptSystem, type ScriptShot } from "@/lib/prompts";
+import {
+  rewriteInstruction,
+  scriptInstruction,
+  scriptSystem,
+  type RewriteCriterion,
+  type ScriptShot,
+} from "@/lib/prompts";
 import type { ScriptResult, ScriptScene, Tone } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -19,6 +26,16 @@ type RawScene = {
   covers: string[];
 };
 type RawResult = { criteria: { id: string; label: string; source: string }[]; scenes: RawScene[] };
+
+type RewriteBody = {
+  description?: string;
+  note?: string;
+  previousLine?: string;
+  seconds?: number;
+  rubric?: string;
+  tone?: Tone;
+  criteria?: { id?: string; label?: string }[];
+};
 
 const TONES: Tone[] = ["professional", "energetic", "storytelling"];
 const MAX_SHOTS = 18;
@@ -71,18 +88,123 @@ function failure(error: unknown): Response {
   );
 }
 
+/**
+ * Rewrites run on the lite model on purpose. The student may correct several
+ * scenes in a row, and the good model's free quota is 20 requests a day — the
+ * full script keeps that budget, single-scene corrections do not.
+ */
+async function rewriteOne(rewrite: RewriteBody): Promise<Response> {
+  const description =
+    typeof rewrite.description === "string"
+      ? rewrite.description.trim().slice(0, 600)
+      : "";
+  const note =
+    typeof rewrite.note === "string" ? rewrite.note.trim().slice(0, 1200) : "";
+
+  if (!description && !note) {
+    return Response.json(
+      { error: "There's nothing about that screen to rewrite from." },
+      { status: 400 },
+    );
+  }
+
+  const criteria: RewriteCriterion[] = (
+    Array.isArray(rewrite.criteria) ? rewrite.criteria : []
+  )
+    .filter(
+      (criterion) =>
+        criterion &&
+        typeof criterion.id === "string" &&
+        criterion.id &&
+        typeof criterion.label === "string" &&
+        criterion.label.trim(),
+    )
+    .slice(0, 6)
+    .map((criterion) => ({
+      id: criterion.id as string,
+      label: (criterion.label as string).trim().slice(0, 80),
+    }));
+
+  const tone = TONES.includes(rewrite.tone as Tone)
+    ? (rewrite.tone as Tone)
+    : "professional";
+  const seconds = Math.min(
+    60,
+    Math.max(3, Math.round(Number(rewrite.seconds) || 12)),
+  );
+  const rubric =
+    typeof rewrite.rubric === "string" ? rewrite.rubric.slice(0, 6000) : "";
+
+  try {
+    const raw = await generateJson<{
+      spokenLine?: string;
+      caption?: string;
+      covers?: string[];
+    }>({
+      parts: [
+        {
+          text: rewriteInstruction({
+            description,
+            note,
+            previousLine:
+              typeof rewrite.previousLine === "string"
+                ? rewrite.previousLine.trim().slice(0, 800)
+                : "",
+            seconds,
+            rubric,
+            criteria,
+          }),
+        },
+      ],
+      schema: rewriteSchema,
+      systemInstruction: scriptSystem(tone),
+      temperature: 0.6,
+      models: [SCRIPT_FALLBACK_MODEL],
+    });
+
+    const spokenLine =
+      typeof raw.spokenLine === "string" ? raw.spokenLine.trim() : "";
+    if (!spokenLine) {
+      throw new GeminiError(
+        "failed",
+        "Gemini didn't rewrite that scene. Try again.",
+      );
+    }
+
+    const allowed = new Set(criteria.map((criterion) => criterion.id));
+    const covers = Array.isArray(raw.covers)
+      ? raw.covers.filter(
+          (id): id is string => typeof id === "string" && allowed.has(id),
+        )
+      : [];
+
+    return Response.json({
+      spokenLine,
+      caption: typeof raw.caption === "string" ? raw.caption.trim() : "",
+      covers: [...new Set(covers)],
+    });
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export async function POST(request: Request) {
   let body: {
     shots?: ScriptShot[];
     rubric?: string;
     tone?: Tone;
     minutes?: number;
+    rewrite?: RewriteBody;
   };
 
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "That request didn't arrive in one piece." }, { status: 400 });
+  }
+
+  if (body.rewrite && typeof body.rewrite === "object") {
+    return rewriteOne(body.rewrite);
   }
 
   const shots = (Array.isArray(body.shots) ? body.shots : [])

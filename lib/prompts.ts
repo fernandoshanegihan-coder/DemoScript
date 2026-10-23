@@ -149,3 +149,58 @@ export function scriptInstruction({
     rubricBlock,
   ].join("\n");
 }
+
+export type RewriteCriterion = {
+  id: string;
+  label: string;
+};
+
+/**
+ * One scene at a time. The student corrected what the screen shows, so the
+ * line has to be written again from that correction — and only that scene.
+ */
+export function rewriteInstruction({
+  description,
+  note,
+  previousLine,
+  seconds,
+  rubric,
+  criteria,
+}: {
+  description: string;
+  note: string;
+  previousLine: string;
+  seconds: number;
+  rubric: string;
+  criteria: RewriteCriterion[];
+}): string {
+  const targetWords = Math.round(seconds * 2.5);
+
+  const criteriaBlock =
+    criteria.length > 0
+      ? [
+          "The rest of the script already answers these criteria. Use the same ids:",
+          ...criteria.map((criterion) => `- ${criterion.id}: ${criterion.label}`),
+          "",
+          "Only include an id in covers when this screen genuinely shows evidence for it. An empty list is fine and normal.",
+          rubric.trim()
+            ? `The student's rubric, copied exactly:\n${rubric.trim()}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "The student gave no judging criteria. Return an empty covers list.";
+
+  return [
+    "Rewrite one scene of a demo-video script. Every other scene is staying exactly as it is.",
+    `The screen in this scene: ${description}`,
+    note.trim() ? `What the student does here: ${note.trim()}` : "",
+    previousLine.trim() ? `The line being replaced: ${previousLine}` : "",
+    `The scene runs about ${Math.round(seconds)} seconds, so write roughly ${Math.round(targetWords * 0.85)}–${Math.round(targetWords * 1.15)} spoken words.`,
+    "Spoken line: first person, present tense. Say what the viewer is looking at and why it matters. No 'as you can see', no 'welcome to my demo', no feature list.",
+    "Caption: at most 8 words, sentence case, describing the visual rather than repeating the spoken line.",
+    criteriaBlock,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}

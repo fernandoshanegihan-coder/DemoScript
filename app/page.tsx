@@ -10,6 +10,7 @@ import { canFloatCapture, openFloatingBar, type FloatingBar } from "@/lib/floati
 import { fileToDataUrl, isImage } from "@/lib/images";
 import { beginRecording, MAX_RECORDING_SECONDS, type RecordingSession } from "@/lib/recorder";
 import { sampleProject, sampleRedNotes } from "@/lib/sampleProject";
+import { detectTimeLimit } from "@/lib/rubric";
 import { clearSession, loadSession, saveSession } from "@/lib/sessionStore";
 import { secondsFor } from "@/lib/timing";
 import type {
@@ -17,6 +18,7 @@ import type {
   Criterion,
   Recording,
   Scene,
+  ScenePatch,
   ScriptResult,
   Shot,
   Tone,
@@ -60,6 +62,7 @@ export default function Page() {
   const [recordingStarting, setRecordingStarting] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
+  const [rewritingSceneId, setRewritingSceneId] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const captureVideoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
@@ -260,6 +263,100 @@ export default function Page() {
     }
     setActiveSceneId(scene.id);
   }, []);
+
+  const statedMinutes = useMemo(() => detectTimeLimit(rubric), [rubric]);
+
+  const updateScene = useCallback((sceneId: string, patch: ScenePatch) => {
+    setScript((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        scenes: previous.scenes.map((scene) => {
+          if (scene.id !== sceneId) return scene;
+          const next = { ...scene, ...patch };
+          // A recorded scene's length is the clip's, not the new line's.
+          if (patch.spokenLine !== undefined && scene.startSeconds == null) {
+            next.seconds = Math.max(1, secondsFor(next.spokenLine));
+          }
+          return next;
+        }),
+      };
+    });
+  }, []);
+
+  const rewriteScene = useCallback(
+    async (sceneId: string) => {
+      if (rewritingSceneId) return;
+      const scene = script?.scenes.find((item) => item.id === sceneId);
+      if (!scene) return;
+
+      const shot = shots.find((item) => item.id === scene.shotId);
+      if (!scene.description.trim() && !shot?.note.trim()) {
+        setNotice("Add what this screen shows, then rewrite the scene.");
+        return;
+      }
+
+      setNotice(null);
+      setRewritingSceneId(sceneId);
+      try {
+        const response = await fetch("/api/script", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rewrite: {
+              description: scene.description,
+              note: shot?.note ?? "",
+              previousLine: scene.spokenLine,
+              seconds: scene.seconds,
+              rubric,
+              tone,
+              criteria: (script?.criteria ?? []).map(({ id, label }) => ({
+                id,
+                label,
+              })),
+            },
+          }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body.error ?? "That scene wasn't rewritten. Try again.");
+        }
+
+        const rewritten = body as {
+          spokenLine: string;
+          caption: string;
+          covers: string[];
+        };
+        updateScene(sceneId, {
+          spokenLine: rewritten.spokenLine,
+          caption: rewritten.caption,
+          covers: rewritten.covers,
+        });
+      } catch (error) {
+        setNotice(
+          error instanceof Error
+            ? error.message
+            : "That scene wasn't rewritten. Try again.",
+        );
+      } finally {
+        setRewritingSceneId(null);
+      }
+    },
+    [rewritingSceneId, script, shots, rubric, tone, updateScene],
+  );
+
+  const deleteScene = useCallback((sceneId: string) => {
+    setScript((previous) =>
+      previous
+        ? {
+            ...previous,
+            scenes: previous.scenes.filter((scene) => scene.id !== sceneId),
+          }
+        : previous,
+    );
+    setActiveSceneId((current) => (current === sceneId ? null : current));
+  }, []);
+
 
   useEffect(() => {
     floatingRef.current?.setRemaining(MAX_SHOTS - shots.length);
@@ -605,6 +702,7 @@ export default function Page() {
               criteria={sampleProject.criteria}
               lengthSeconds={sampleProject.lengthSeconds}
               redNotes={sampleRedNotes}
+              statedMinutes={detectTimeLimit(sampleProject.rubric)}
             />
           ) : (
             <>
@@ -626,6 +724,12 @@ export default function Page() {
                   lengthSeconds={minutes * 60}
                   activeSceneId={activeSceneId}
                   onSeekScene={recording ? seekScene : undefined}
+                  statedMinutes={statedMinutes}
+                  editable
+                  rewritingSceneId={rewritingSceneId}
+                  onUpdateScene={updateScene}
+                  onRewriteScene={(sceneId) => void rewriteScene(sceneId)}
+                  onDeleteScene={deleteScene}
                 />
               ) : (
                 <SkeletonStoryboard
