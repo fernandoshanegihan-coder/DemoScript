@@ -5,10 +5,12 @@ export default function SceneCard({
   scene,
   shot,
   index,
+  covers = [],
 }: {
   scene: Scene;
   shot?: Shot;
   index: number;
+  covers?: string[];
 }) {
   return (
     <article className="grid grid-cols-[92px_1fr] gap-5 border-b border-hairline py-5">
@@ -35,6 +37,11 @@ export default function SceneCard({
         <p className="mt-2 pl-7 text-[12px] leading-relaxed text-muted">
           {scene.caption}
         </p>
+        {covers.length > 0 ? (
+          <p className="mt-1.5 pl-7 text-[11px] text-ok">
+            Proves: {covers.join(" · ")}
+          </p>
+        ) : null}
       </div>
     </article>
   );

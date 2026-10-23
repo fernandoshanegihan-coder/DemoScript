@@ -26,6 +26,19 @@ export type Criterion = {
   source: string;
 };
 
+export type ScriptScene = {
+  shotId: string;
+  actionId: string;
+  spokenLine: string;
+  caption: string;
+  covers: string[];
+};
+
+export type ScriptResult = {
+  criteria: Criterion[];
+  scenes: ScriptScene[];
+};
+
 export type Scene = {
   id: string;
   shotId: string;

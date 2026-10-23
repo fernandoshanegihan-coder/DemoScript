@@ -39,23 +39,13 @@ Build mode: fast mode
   Learner check: Share the window with your project running, walk through two or three states of your one-page app, and capture a frame at each. Does the flow of frames match how you'd actually demo it?
   Commit: `Capture frames from a shared screen`
 
-
+- [x] **3. Real screenshots become a script with a red criterion**
   Becomes usable: The button calls Gemini. Each screenshot is read and returns a description plus a confidence flag; a low-confidence image asks "not clear — what does it show?" instead of inventing. One generation call returns the parsed criteria and the scenes. The storyboard fills with spoken lines, captions, timer chips, and a clock; criteria go red or green; the script copies to the clipboard as plain text.
   Why now: This is the kernel and the only external dependency, proven together — with the shell and inputs already good enough to land the output in. Start by verifying the model, so a quota surprise arrives before any UI is built on top of it.
   PRD ref: `prd.md > Making the script`, `prd.md > The criteria panel`, `prd.md > Copying the script`, `prd.md > States and Boundaries`
   Spec ref: `spec.md > External Services and Dependencies`, `spec.md > Components` (`Storyboard`, `SceneCard`, `CriteriaPanel`), `spec.md > Data Model`, `spec.md > Important Failure Modes`
-  Build: Scratch call to confirm the model ID and free-tier limits, recorded in the checklist; `lib/gemini.ts` and `lib/prompts.ts` with the response schemas; `app/api/analyze/route.ts` (one call per image, concurrency 2–3) and `app/api/script/route.ts` (criteria + scenes); wire the button with in-place progress; render real scenes; compute `seconds` in `lib/timing.ts`; criteria panel red/green with plain explanations for reds; copy to clipboard; plain error states for rate limit and malformed JSON with one retry.
-  Verify (mechanical): The scratch call returns a valid structured response and the model ID is recorded; a generation from three sample screenshots returns three or more scenes and at least one parsed criterion; every scene has a non-zero duration and the clock total matches the sum; a deliberately blurred image produces the "not clear" path rather than an invented description; disabling the key produces the plain error state with inputs intact; clipboard content contains scenes in order with captions.
-  Learner check: Run a script from two or three of your real project screenshots. Does the spoken text sound like something you'd actually say out loud — and did any red criterion surprise you?
-  Commit: `Generate script and criteria from real screenshots`
-
-- [ ] **3. Real screenshots become a script with a red criterion**
-  Becomes usable: The button calls Gemini. Each screenshot is read and returns a description plus a confidence flag; a low-confidence image asks "not clear — what does it show?" instead of inventing. One generation call returns the parsed criteria and the scenes. The storyboard fills with spoken lines, captions, timer chips, and a clock; criteria go red or green; the script copies to the clipboard as plain text.
-  Why now: This is the kernel and the only external dependency, proven together — with the shell and inputs already good enough to land the output in. Start by verifying the model, so a quota surprise arrives before any UI is built on top of it.
-  PRD ref: `prd.md > Making the script`, `prd.md > The criteria panel`, `prd.md > Copying the script`, `prd.md > States and Boundaries`
-  Spec ref: `spec.md > External Services and Dependencies`, `spec.md > Components` (`Storyboard`, `SceneCard`, `CriteriaPanel`), `spec.md > Data Model`, `spec.md > Important Failure Modes`
-  Build: Scratch call to confirm the model ID and free-tier limits, recorded in the checklist; `lib/gemini.ts` and `lib/prompts.ts` with the response schemas; `app/api/analyze/route.ts` (one call per image, concurrency 2–3) and `app/api/script/route.ts` (criteria + scenes); wire the button with in-place progress; render real scenes; compute `seconds` in `lib/timing.ts`; criteria panel red/green with plain explanations for reds; copy to clipboard; plain error states for rate limit and malformed JSON with one retry.
-  Verify (mechanical): The scratch call returns a valid structured response and the model ID is recorded; a generation from three sample screenshots returns three or more scenes and at least one parsed criterion; every scene has a non-zero duration and the clock total matches the sum; a deliberately blurred image produces the "not clear" path rather than an invented description; disabling the key produces the plain error state with inputs intact; clipboard content contains scenes in order with captions.
+  Build: **Verified 23 Oct 2026 with the real key:** free tier is per model and per day — `gemini-3.8-flash` 5 rpm / **20 requests/day**, `gemini-3.5-flash-lite` 10 rpm / **500 requests/day**; `gemini-3-flash` and `gemini-2.5-flash` no longer exist, `gemini-flash-latest` aliases 3.8. Setup: `lib/gemini.ts` (two models, schema-enforced JSON, one retry, automatic fallback to flash-lite when the daily quota is gone) and `lib/prompts.ts`; `app/api/analyze/route.ts` (one call for all images — a per-image call would burn the 20/day cap before the script was written); `app/api/script/route.ts` (criteria + scenes, criterion ids renumbered so scenes and panel cannot disagree); wire the button with in-place progress; render real scenes; compute `seconds` in `lib/timing.ts`; criteria panel red/green; copy to clipboard; plain error states.
+  Verify (mechanical): scratch call returned valid responses and the model IDs and daily limits are recorded above; a 3-screenshot generation returned 8 scenes, all 3 screenshots used, 4 parsed criteria (two green, two red in the first run) and a clock of 1:18 that equals the sum of the scene chips; a deliberately blurred screenshot produced "I couldn't read screenshot 2 — add a note for it" with the other screenshot's scenes written and nothing invented; an emptied `GEMINI_API_KEY` produced the plain setup message with the route returning 400 and the page's state untouched (checked at the API; the UI error path is the same one exercised by the rate-limit case); the copied text contains every scene in order with its caption and timer.
   Learner check: Run a script from two or three of your real project screenshots. Does the spoken text sound like something you'd actually say out loud — and did any red criterion surprise you?
   Commit: `Generate script and criteria from real screenshots`
 
@@ -71,7 +61,7 @@ Build mode: fast mode
 
 ## Hands-on Checkpoints
 
-- [ ] Early usable behavior explored — after slice 2 (the look, the empty state, and the input column)
+- [x] Early usable behavior explored — after slice 2 (the look, the empty state, and the input column; feedback produced screen capture and then the floating bar)
 - [ ] Final kick-the-tires exploration and feedback completed
 
 ## Final Review
@@ -94,3 +84,6 @@ Activity mode: [pending]
 
 - Added in-app screen capture (slice 2b) — the learner's project has one page, so a single screenshot cannot show the flow; frames captured from a shared window enter the same thumbnail list as uploads.
 - Capture moved into a floating always-on-top window — the first version made the user switch back to DemoScript for every frame, which is the friction the product exists to remove. Browsers without `documentPictureInPicture` keep the in-page bar.
+- Analysis collapsed into one call for all screenshots — the free tier is 20 requests/day on the good model, so one call per image would exhaust a demo before the script was written.
+- Two models instead of one — reading uses `gemini-3.5-flash-lite` (500/day), writing prefers `gemini-3.8-flash` (20/day) and falls back to flash-lite when its quota is gone. The student never sees a dead end they cannot fix.
+- The script brief now targets one scene per ~15 seconds and allows reusing a screenshot — the first real run filled 0:25 of a 2:00 video because it wrote exactly one short scene per image.

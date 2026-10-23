@@ -3,9 +3,11 @@ import { formatClock } from "@/lib/timing";
 export default function SkeletonStoryboard({
   onTrySample,
   minutes,
+  busyLine,
 }: {
   onTrySample: () => void;
   minutes: number;
+  busyLine?: string | null;
 }) {
   return (
     <div className="relative min-h-[520px]">
@@ -40,16 +42,22 @@ export default function SkeletonStoryboard({
       <div className="absolute inset-0 grid place-items-center">
         <div className="max-w-[23rem] px-6 text-center">
           <p className="text-[15px] leading-relaxed text-ink">
-            Your script will appear here, scene by scene, with a checklist showing
-            what each scene proves.
+            {busyLine ??
+              "Your script will appear here, scene by scene, with a checklist showing what each scene proves."}
           </p>
-          <button
-            type="button"
-            onClick={onTrySample}
-            className="mt-4 text-[12.5px] text-accent underline decoration-hairline underline-offset-4 hover:decoration-accent"
-          >
-            Try it with a sample project
-          </button>
+          {busyLine ? (
+            <p className="mt-3 text-[12px] text-muted">
+              Keep this tab open — usually ten to thirty seconds.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={onTrySample}
+              className="mt-4 text-[12.5px] text-accent underline decoration-hairline underline-offset-4 hover:decoration-accent"
+            >
+              Try it with a sample project
+            </button>
+          )}
         </div>
       </div>
     </div>

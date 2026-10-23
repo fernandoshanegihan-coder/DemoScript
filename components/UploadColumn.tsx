@@ -19,6 +19,9 @@ type Props = {
   maxShots: number;
   notice: string | null;
   sharing: boolean;
+  busy: boolean;
+  status: string | null;
+  onGenerate: () => void;
   onStartShare: () => void;
   onStopShare: () => void;
   onCaptureFrame: () => void;
@@ -43,6 +46,9 @@ export default function UploadColumn({
   maxShots,
   notice,
   sharing,
+  busy,
+  status,
+  onGenerate,
   onStartShare,
   onStopShare,
   onCaptureFrame,
@@ -322,17 +328,20 @@ export default function UploadColumn({
       <div className="mt-8">
         <button
           type="button"
-          disabled={!hasShots || isSample}
+          onClick={onGenerate}
+          disabled={!hasShots || isSample || busy}
           className="w-full bg-accent px-4 py-2.5 text-[13.5px] text-paper transition-opacity disabled:cursor-not-allowed disabled:bg-paper-sunk disabled:text-faint"
         >
-          Make my script
+          {busy ? (status ?? "Working…") : "Make my script"}
         </button>
         <p className="mt-2 text-[12px] text-muted">
           {isSample
             ? "You're looking at a sample project."
-            : hasShots
-              ? "Ready when you are."
-              : "Add a screenshot to start."}
+            : busy
+              ? "Keep this tab open — usually ten to thirty seconds."
+              : hasShots
+                ? "Ready when you are."
+                : "Add a screenshot to start."}
         </p>
         {isSample ? (
           <button

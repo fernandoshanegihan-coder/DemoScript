@@ -187,7 +187,7 @@ demoscript/
 │   ├── CriteriaPanel.tsx
 │   └── ClockBar.tsx
 ├── lib/
-│   ├── gemini.ts               # client wrapper, model id, retry
+│   ├── gemini.ts               # two models, schema-enforced JSON, fallback
 │   ├── prompts.ts              # the exact prompts and response schemas
 │   ├── types.ts                # the types above
 │   ├── timing.ts               # words → seconds
@@ -198,6 +198,8 @@ demoscript/
 │   └── sampleProject.ts        # cached example (no model call)
 ├── public/
 │   └── sample/                 # sample screenshots used by the sample project
+├── scripts/
+│   └── check-model.mjs         # which models this key can use, and why not
 ├── .env.local                  # GEMINI_API_KEY (gitignored)
 ├── .env.example                # names only, no secrets
 ├── package.json
@@ -209,18 +211,18 @@ demoscript/
 
 **Gemini API — image analysis**
 
-- Endpoint: `POST https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent`
-- Auth: header `x-goog-api-key: ${GEMINI_API_KEY}`
-- Body shape: `contents[0].parts[]` with one `inlineData` part (`mimeType`, `data` base64) and one `text` part (the instruction), plus `generationConfig`.
-- Config: `temperature: 0.2`, `responseMimeType: "application/json"`, `responseSchema` for `{ description, elements, confident }`.
-- Called once per screenshot, with concurrency capped at 2–3 to stay under roughly 10 requests/minute.
-- Cost on free tier: no charge; rate limits apply.
+- SDK: `@google/genai` v2, `ai.models.generateContent({ model, contents, config })`. The key stays in `.env.local`.
+- Model: `gemini-3.5-flash-lite` (free tier: 10 rpm, 500 requests/day per project, verified 23 Oct 2026).
+- One call for **all** screenshots, not one per image: every image goes in as an `inlineData` part, and the response schema is `{ analyses: [{ index, description, elements, confident }] }`. The free tier counts requests per day, and six separate calls is the easiest way to exhaust it before the script is written.
+- Config: `temperature: 0.2`, `thinkingLevel: low`, `responseMimeType: "application/json"`, `responseSchema`, with an explicit instruction that abstaining (`confident: false`) is a valid answer.
+- Cost on free tier: no charge; the daily cap is the real limit.
 
 **Gemini API — script generation**
 
-- Same endpoint. Text-only request containing: all descriptions, all notes, rubric text (if any), tone, length, and the instruction set.
+- Model: `gemini-3.8-flash` (free tier: 5 rpm, **20 requests/day**), falling back to `gemini-3.5-flash-lite` (500/day) when its daily quota is gone, so the app never dead-ends on a quota the student cannot see.
+- Same SDK call, text-only, containing: all descriptions, all notes, rubric text (if any), tone, length, and the instruction set.
 - `responseSchema` for `{ criteria: [{ id, label, source }], scenes: [{ shotId, actionId, spokenLine, caption, covers }] }`.
-- One call for the whole script, not one per scene — fewer calls, fewer chances to fail, and the model can balance time across scenes.
+- One call for the whole script, not one per scene — fewer calls, fewer chances to fail, and the model can balance time across scenes. The brief asks for roughly one scene per 15 seconds and lets the model reuse a screenshot when there are fewer images than scenes, which is the normal case for a one-page project.
 - Rewrite mode: same endpoint, one scene's context plus its target duration, returning a single scene.
 
 **Time limit detection** — `lib/rubric.ts` looks for a duration in the rubric text (`3 minute`, `2:30`, `180 seconds`, `5 min including Q&A`) with a small set of patterns, then clamps to 1–3 minutes for the comparison. If nothing is found, no notice. Deliberately simple; prose like "keep it brief" won't match and shouldn't.
@@ -229,7 +231,7 @@ demoscript/
 
 ## Important Failure Modes
 
-- **Free-tier rate limit or quota hit** → the button shows "Gemini is rate-limited — try again in a minute," user's screenshots and notes stay, and a retry is one click. Not a dead end.
+- **Free-tier rate limit or quota hit** → "Gemini's free quota is used up for now — try again in a minute, or after midnight Pacific if it keeps happening." The user's screenshots and notes stay, and a retry is one click. The script call first tries the better model and falls back to flash-lite, so a used-up daily cap on one model does not block the generation.
 - **A screenshot the model can't read** (blurry, a photo of a phone, a mostly-empty page) → `confident: false` produces "I couldn't read this one — what does it show?" with the note field focused. No invented content.
 - **Generation takes long enough to feel broken** (10–20s with several screenshots) → the right column shows progress in place ("reading screenshot 2 of 4", then "writing scenes"), never a full-screen spinner that hides the layout.
 - **Image too large** → the browser downscales to 1600px wide before sending; if the file isn't an image, it's rejected at drop with a plain line.

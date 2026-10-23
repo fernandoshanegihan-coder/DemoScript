@@ -8,7 +8,15 @@ import { frameFromVideo, startScreenShare } from "@/lib/capture";
 import { canFloatCapture, openFloatingBar, type FloatingBar } from "@/lib/floatingBar";
 import { fileToDataUrl, isImage } from "@/lib/images";
 import { sampleProject, sampleRedNotes } from "@/lib/sampleProject";
-import type { Shot, Tone } from "@/lib/types";
+import { secondsFor } from "@/lib/timing";
+import type {
+  Analysis,
+  Criterion,
+  Scene,
+  ScriptResult,
+  Shot,
+  Tone,
+} from "@/lib/types";
 
 const MAX_SHOTS = 6;
 
@@ -18,6 +26,16 @@ function newId(): string {
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function unreadLine(numbers: number[]): string {
+  const list =
+    numbers.length > 1
+      ? `${numbers.slice(0, -1).join(", ")} and ${numbers[numbers.length - 1]}`
+      : `${numbers[0]}`;
+  return numbers.length > 1
+    ? `I couldn't read screenshots ${list} — add a note for them, then try again.`
+    : `I couldn't read screenshot ${list} — add a note for it, then try again.`;
+}
+
 export default function Page() {
   const [view, setView] = useState<"empty" | "sample">("empty");
   const [shots, setShots] = useState<Shot[]>([]);
@@ -25,6 +43,12 @@ export default function Page() {
   const [tone, setTone] = useState<Tone>("professional");
   const [minutes, setMinutes] = useState(2);
   const [notice, setNotice] = useState<string | null>(null);
+  const [script, setScript] = useState<{
+    scenes: Scene[];
+    criteria: Criterion[];
+  } | null>(null);
+  const [running, setRunning] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [floating, setFloating] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
@@ -158,6 +182,122 @@ export default function Page() {
     );
   }, []);
 
+  const generate = useCallback(async () => {
+    if (running || shots.length === 0) return;
+
+    setNotice(null);
+    setRunning(true);
+    setStatus(
+      `Reading ${shots.length} screenshot${shots.length === 1 ? "" : "s"}…`,
+    );
+
+    try {
+      const analyzeResponse = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          images: shots.map((shot) => ({ id: shot.id, dataUrl: shot.dataUrl })),
+        }),
+      });
+      const analyzeBody = await analyzeResponse.json().catch(() => ({}));
+      if (!analyzeResponse.ok) {
+        throw new Error(
+          analyzeBody.error ?? "The screenshots couldn't be read. Try again.",
+        );
+      }
+
+      const analyses: Analysis[] = analyzeBody.results ?? [];
+      const analysisById = new Map(analyses.map((item) => [item.shotId, item]));
+
+      const descriptionByShot = new Map<string, string>();
+      const unread: number[] = [];
+      const requestShots: {
+        shotId: string;
+        actionId: string;
+        description: string;
+        note: string;
+      }[] = [];
+
+      shots.forEach((shot, index) => {
+        const analysis = analysisById.get(shot.id);
+        const read = analysis?.confident ? analysis.description.trim() : "";
+        // The student's own note outranks the model's reading of the image.
+        const description = read || shot.note.trim();
+
+        if (!description) {
+          unread.push(index + 1);
+          return;
+        }
+
+        descriptionByShot.set(shot.id, description);
+        const actions = shot.actions.filter((action) => action.note.trim());
+
+        if (actions.length === 0) {
+          requestShots.push({
+            shotId: shot.id,
+            actionId: "",
+            description,
+            note: shot.note,
+          });
+        } else {
+          for (const action of actions) {
+            requestShots.push({
+              shotId: shot.id,
+              actionId: action.id,
+              description,
+              note: action.note,
+            });
+          }
+        }
+      });
+
+      if (requestShots.length === 0) {
+        setNotice(
+          "None of those screenshots could be read. Add a note to at least one, then try again.",
+        );
+        return;
+      }
+
+      setStatus("Writing scenes…");
+      const scriptResponse = await fetch("/api/script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shots: requestShots, rubric, tone, minutes }),
+      });
+      const scriptBody = await scriptResponse.json().catch(() => ({}));
+      if (!scriptResponse.ok) {
+        throw new Error(
+          scriptBody.error ?? "The script didn't come through. Try again.",
+        );
+      }
+
+      const result = scriptBody as ScriptResult;
+      const scenes: Scene[] = result.scenes.map((scene) => ({
+        id: newId(),
+        shotId: scene.shotId,
+        actionId: scene.actionId,
+        spokenLine: scene.spokenLine,
+        caption: scene.caption,
+        description: descriptionByShot.get(scene.shotId) ?? "",
+        covers: scene.covers,
+        seconds: Math.max(1, secondsFor(scene.spokenLine)),
+      }));
+
+      setScript({ scenes, criteria: result.criteria });
+
+      if (unread.length > 0) setNotice(unreadLine(unread));
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Your screenshots are still here.",
+      );
+    } finally {
+      setRunning(false);
+      setStatus(null);
+    }
+  }, [minutes, rubric, running, shots, tone]);
+
   return (
     <div className="min-h-screen">
       <video ref={videoRef} muted playsInline className="hidden" aria-hidden />
@@ -184,6 +324,9 @@ export default function Page() {
             maxShots={MAX_SHOTS}
             notice={notice}
             sharing={sharing && !floating}
+            busy={running}
+            status={status}
+            onGenerate={() => void generate()}
             onStartShare={() => {
               if (isSample) {
                 setView("empty");
@@ -220,9 +363,17 @@ export default function Page() {
                 ),
               }))
             }
-            onRemoveShot={(shotId) =>
-              setShots((previous) => previous.filter((shot) => shot.id !== shotId))
-            }
+            onRemoveShot={(shotId) => {
+              setShots((previous) => previous.filter((shot) => shot.id !== shotId));
+              setScript((previous) =>
+                previous
+                  ? {
+                      ...previous,
+                      scenes: previous.scenes.filter((scene) => scene.shotId !== shotId),
+                    }
+                  : previous,
+              );
+            }}
             onReorder={(from, to) =>
               setShots((previous) => {
                 const next = [...previous];
@@ -244,8 +395,19 @@ export default function Page() {
               lengthSeconds={sampleProject.lengthSeconds}
               redNotes={sampleRedNotes}
             />
+          ) : script ? (
+            <Storyboard
+              scenes={script.scenes}
+              shots={shots}
+              criteria={script.criteria}
+              lengthSeconds={minutes * 60}
+            />
           ) : (
-            <SkeletonStoryboard onTrySample={() => setView("sample")} minutes={minutes} />
+            <SkeletonStoryboard
+              onTrySample={() => setView("sample")}
+              minutes={minutes}
+              busyLine={running ? status : null}
+            />
           )}
         </section>
       </main>
