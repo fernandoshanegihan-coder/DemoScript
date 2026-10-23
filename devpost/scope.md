@@ -22,7 +22,7 @@ What they do today instead: wing the recording, go long, then either submit it a
 ## The Core Loop
 
 1. Open the app. No signup, no configuration.
-2. Drop in screenshots — messy, out of order, several actions in one image is fine.
+2. Drop in screenshots — messy, out of order, several actions in one image is fine. A one-page project can also be captured frame by frame: start a screen share, click through the app, and grab a frame per state.
 3. The app asks whether they have a rubric. If yes, paste it. If no, the criteria panel doesn't appear and the script still works.
 4. For each screenshot the app shows **what it thinks it sees**, for a two-second confirm. Trust matters more than speed here: a confident wrong description at 11pm destroys the tool.
 5. Scenes appear: a spoken line you could actually say out loud, plus a caption. The user sets the target length (1–3 minutes, default 2), and the clock counts toward it. If the rubric states a different required demo time, the app names the mismatch and keeps the user's choice.
@@ -56,6 +56,7 @@ The "oh, that's useful" beat: a red criterion sitting next to a screenshot of a 
 In:
 
 - Screenshot upload, tolerant of messy and out-of-order input
+- In-app screen capture for projects that only have one page
 - Optional rubric paste
 - A confirm step showing what the app read in each screenshot
 - Generated scenes: spoken line plus caption

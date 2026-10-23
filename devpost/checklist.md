@@ -29,6 +29,26 @@ Build mode: fast mode
   Learner check: Drop three of your own screenshots, add a short note to each, reorder one. Does this feel like something you'd use at 11pm, or is anything asking too much of you?
   Commit: `Accept screenshots with notes, ordering, and a six-image cap`
 
+- [x] **2b. Capture frames from your own screen**
+  Becomes usable: A second button under the drop area shares a window or tab and stays open while you click through your project. Each "Capture frame" adds the next numbered thumbnail with an empty note, so a one-page app can produce several frames. "Stop sharing" ends it.
+  Why now: It changes where screenshots come from, which is input-side work. Doing it before the Gemini slices means the API work is built against the final input path, not one that changes underneath it.
+  PRD ref: `prd.md > Capturing frames from your own screen`, `prd.md > Screens and Layout`, `prd.md > States and Boundaries`
+  Spec ref: `spec.md > Components` (`CaptureBar`), `spec.md > Important Failure Modes`, `spec.md > File Structure`
+  Build: `lib/capture.ts` wrapping `getDisplayMedia`, a ref-held stream, and canvas frame grabbing at the same 1600px/JPEG sizing as uploads; a `CaptureBar` shown while sharing; "Capture screenshots" and "Stop sharing" controls in `UploadColumn`; plain messages for refusal and unsupported browsers; stop tracks on stop, unmount, and the browser's own "stop sharing."
+  Verify (mechanical): The button renders next to "Choose screenshots"; where `getDisplayMedia` is unavailable or refused, clicking it shows the plain message and leaves the rest of the app working; the capture path adds a shot through the same state function as uploads, confirmed by the shared cap and numbering; no tracks remain after stop; `npm run build` passes. Real frame capture needs a human click in the browser picker, so it is confirmed in the learner check.
+  Learner check: Share the window with your project running, walk through two or three states of your one-page app, and capture a frame at each. Does the flow of frames match how you'd actually demo it?
+  Commit: `Capture frames from a shared screen`
+
+
+  Becomes usable: The button calls Gemini. Each screenshot is read and returns a description plus a confidence flag; a low-confidence image asks "not clear — what does it show?" instead of inventing. One generation call returns the parsed criteria and the scenes. The storyboard fills with spoken lines, captions, timer chips, and a clock; criteria go red or green; the script copies to the clipboard as plain text.
+  Why now: This is the kernel and the only external dependency, proven together — with the shell and inputs already good enough to land the output in. Start by verifying the model, so a quota surprise arrives before any UI is built on top of it.
+  PRD ref: `prd.md > Making the script`, `prd.md > The criteria panel`, `prd.md > Copying the script`, `prd.md > States and Boundaries`
+  Spec ref: `spec.md > External Services and Dependencies`, `spec.md > Components` (`Storyboard`, `SceneCard`, `CriteriaPanel`), `spec.md > Data Model`, `spec.md > Important Failure Modes`
+  Build: Scratch call to confirm the model ID and free-tier limits, recorded in the checklist; `lib/gemini.ts` and `lib/prompts.ts` with the response schemas; `app/api/analyze/route.ts` (one call per image, concurrency 2–3) and `app/api/script/route.ts` (criteria + scenes); wire the button with in-place progress; render real scenes; compute `seconds` in `lib/timing.ts`; criteria panel red/green with plain explanations for reds; copy to clipboard; plain error states for rate limit and malformed JSON with one retry.
+  Verify (mechanical): The scratch call returns a valid structured response and the model ID is recorded; a generation from three sample screenshots returns three or more scenes and at least one parsed criterion; every scene has a non-zero duration and the clock total matches the sum; a deliberately blurred image produces the "not clear" path rather than an invented description; disabling the key produces the plain error state with inputs intact; clipboard content contains scenes in order with captions.
+  Learner check: Run a script from two or three of your real project screenshots. Does the spoken text sound like something you'd actually say out loud — and did any red criterion surprise you?
+  Commit: `Generate script and criteria from real screenshots`
+
 - [ ] **3. Real screenshots become a script with a red criterion**
   Becomes usable: The button calls Gemini. Each screenshot is read and returns a description plus a confidence flag; a low-confidence image asks "not clear — what does it show?" instead of inventing. One generation call returns the parsed criteria and the scenes. The storyboard fills with spoken lines, captions, timer chips, and a clock; criteria go red or green; the script copies to the clipboard as plain text.
   Why now: This is the kernel and the only external dependency, proven together — with the shell and inputs already good enough to land the output in. Start by verifying the model, so a quota surprise arrives before any UI is built on top of it.
@@ -71,3 +91,5 @@ Reflection: [pending]
 Activity mode: [pending]
 
 ## Revisions
+
+- Added in-app screen capture (slice 2b) — the learner's project has one page, so a single screenshot cannot show the flow; frames captured from a shared window enter the same thumbnail list as uploads.

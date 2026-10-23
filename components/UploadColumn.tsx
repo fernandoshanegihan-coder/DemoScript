@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import CaptureBar from "@/components/CaptureBar";
 import type { Shot, Tone } from "@/lib/types";
 
 const TONES: { id: Tone; label: string }[] = [
@@ -17,6 +18,10 @@ type Props = {
   isSample: boolean;
   maxShots: number;
   notice: string | null;
+  sharing: boolean;
+  onStartShare: () => void;
+  onStopShare: () => void;
+  onCaptureFrame: () => void;
   onAddFiles: (files: File[]) => void;
   onRubricChange: (value: string) => void;
   onToneChange: (tone: Tone) => void;
@@ -37,6 +42,10 @@ export default function UploadColumn({
   isSample,
   maxShots,
   notice,
+  sharing,
+  onStartShare,
+  onStopShare,
+  onCaptureFrame,
   onAddFiles,
   onRubricChange,
   onToneChange,
@@ -76,6 +85,13 @@ export default function UploadColumn({
           dragging ? "border-accent bg-white/50" : "border-hairline"
         }`}
       >
+        {sharing ? (
+          <CaptureBar
+            onCapture={onCaptureFrame}
+            onStop={onStopShare}
+            remaining={maxShots - shots.length}
+          />
+        ) : null}
         {hasShots ? (
           <ol className="space-y-3">
             {shots.map((shot, index) => (
@@ -170,6 +186,13 @@ export default function UploadColumn({
                 >
                   Choose screenshots
                 </button>
+                <button
+                  type="button"
+                  onClick={onStartShare}
+                  className="mt-4 ml-2 border border-hairline px-3 py-1.5 text-[12.5px] text-ink hover:border-accent"
+                >
+                  Capture screenshots
+                </button>
               </div>
               <svg
                 aria-hidden
@@ -210,6 +233,13 @@ export default function UploadColumn({
             className="text-accent underline decoration-hairline underline-offset-2 hover:decoration-accent"
           >
             Add more screenshots
+          </button>
+          <button
+            type="button"
+            onClick={onStartShare}
+            className="text-accent underline decoration-hairline underline-offset-2 hover:decoration-accent"
+          >
+            Capture screenshots
           </button>
           <span className="text-faint">
             {shots.length} of {maxShots}

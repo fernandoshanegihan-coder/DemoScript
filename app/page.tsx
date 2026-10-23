@@ -1,14 +1,21 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import SkeletonStoryboard from "@/components/SkeletonStoryboard";
 import Storyboard from "@/components/Storyboard";
 import UploadColumn from "@/components/UploadColumn";
+import { frameFromVideo, startScreenShare } from "@/lib/capture";
 import { fileToDataUrl, isImage } from "@/lib/images";
 import { sampleProject, sampleRedNotes } from "@/lib/sampleProject";
 import type { Shot, Tone } from "@/lib/types";
 
 const MAX_SHOTS = 6;
+
+function newId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 export default function Page() {
   const [view, setView] = useState<"empty" | "sample">("empty");
@@ -17,8 +24,68 @@ export default function Page() {
   const [tone, setTone] = useState<Tone>("professional");
   const [minutes, setMinutes] = useState(2);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const isSample = view === "sample";
+
+  const stopShare = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setSharing(false);
+  }, []);
+
+  useEffect(() => stopShare, [stopShare]);
+
+  const startShare = useCallback(async () => {
+    setNotice(null);
+    try {
+      const stream = await startScreenShare();
+      streamRef.current = stream;
+      setSharing(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        void videoRef.current.play().catch(() => undefined);
+      }
+      stream.getVideoTracks()[0]?.addEventListener("ended", () => stopShare());
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Screen sharing was blocked. Use Choose screenshots instead.",
+      );
+    }
+  }, [stopShare]);
+
+  const captureFrame = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (shots.length >= MAX_SHOTS) {
+      setNotice("6 at a time — that's already a full 3-minute script.");
+      return;
+    }
+    const dataUrl = frameFromVideo(video);
+    if (!dataUrl) {
+      setNotice("That frame wasn't ready yet. Try again in a second.");
+      return;
+    }
+    setShots((previous) =>
+      previous.length >= MAX_SHOTS
+        ? previous
+        : [
+            ...previous,
+            {
+              id: newId(),
+              fileName: `capture-${previous.length + 1}.jpg`,
+              dataUrl,
+              note: "",
+              actions: [],
+            },
+          ],
+    );
+  }, [shots.length]);
 
   const addFiles = useCallback(
     async (files: File[]) => {
@@ -40,10 +107,7 @@ export default function Page() {
       try {
         const next = await Promise.all(
           accepted.map(async (file) => ({
-            id:
-              typeof crypto !== "undefined" && "randomUUID" in crypto
-                ? crypto.randomUUID()
-                : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            id: newId(),
             fileName: file.name,
             dataUrl: await fileToDataUrl(file),
             note: "",
@@ -68,6 +132,7 @@ export default function Page() {
 
   return (
     <div className="min-h-screen">
+      <video ref={videoRef} muted playsInline className="hidden" aria-hidden />
       <header className="mx-auto flex max-w-page items-baseline justify-between px-6 pb-10 pt-10 sm:px-8">
         <div>
           <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
@@ -90,6 +155,16 @@ export default function Page() {
             isSample={isSample}
             maxShots={MAX_SHOTS}
             notice={notice}
+            sharing={sharing}
+            onStartShare={() => {
+              if (isSample) {
+                setView("empty");
+                return;
+              }
+              void startShare();
+            }}
+            onStopShare={stopShare}
+            onCaptureFrame={captureFrame}
             onAddFiles={addFiles}
             onRubricChange={setRubric}
             onToneChange={setTone}
@@ -103,10 +178,7 @@ export default function Page() {
                 actions: [
                   ...shot.actions,
                   {
-                    id:
-                      typeof crypto !== "undefined" && "randomUUID" in crypto
-                        ? crypto.randomUUID()
-                        : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                    id: newId(),
                     note: "",
                   },
                 ],

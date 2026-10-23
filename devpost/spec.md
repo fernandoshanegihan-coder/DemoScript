@@ -87,6 +87,10 @@ Numbered thumbnails with drag reorder, a note field per screenshot ("what do you
 **Cap: 6 screenshots.** A seventh is refused with a plain line — "6 at a time — that's already a full 3-minute script" — and the existing six stay untouched. The cap exists to protect the demo from rate limits and long waits, not to limit the product.
 PRD ref: `prd.md > Uploading and arranging screenshots`.
 
+### `CaptureBar` — frames from the user's own screen
+Two buttons sit under the drop area: "Choose screenshots" and "Capture screenshots." Capture calls `navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })`, keeps the returned stream alive in a ref, and shows a small bar: "Sharing your screen. Switch to your project, then capture a frame." Each "Capture frame" draws the current video frame to a canvas, encodes a JPEG like an upload, and appends a shot with an empty note. "Stop sharing" stops every track and unmount stops them too. No recording, no audio, no persisted frames.
+PRD ref: `prd.md > Capturing frames from your own screen`.
+
 ### `RubricBox` — optional criteria
 Free-text area, question-style label, placeholder examples, and a link that fills in the course's own criteria from a constant. Parsing happens on the server, not here.
 PRD ref: `prd.md > The rubric (optional)`.
@@ -169,6 +173,7 @@ demoscript/
 │       └── script/route.ts     # POST: everything → criteria + scenes (or one rewrite)
 ├── components/
 │   ├── UploadColumn.tsx
+│   ├── CaptureBar.tsx
 │   ├── ThumbnailList.tsx
 │   ├── RubricBox.tsx
 │   ├── ToneLengthControls.tsx
@@ -182,6 +187,7 @@ demoscript/
 │   ├── prompts.ts              # the exact prompts and response schemas
 │   ├── types.ts                # the types above
 │   ├── timing.ts               # words → seconds
+│   ├── capture.ts              # getDisplayMedia + frame grabbing
 │   ├── cuts.ts                 # cut-flag rules
 │   ├── rubric.ts               # course criteria constant + time-limit detection
 │   └── sampleProject.ts        # cached example (no model call)
@@ -224,6 +230,8 @@ demoscript/
 - **Image too large** → the browser downscales to 1600px wide before sending; if the file isn't an image, it's rejected at drop with a plain line.
 - **Malformed model JSON** → one retry with the same prompt; on a second failure, a plain error and the user's input untouched.
 - **Too many screenshots** → a seventh drop is refused with "6 at a time — that's already a full 3-minute script." Existing screenshots are unaffected.
+- **Screen sharing refused or unavailable** → a plain line in the upload area: "Screen sharing was blocked. Use Choose screenshots instead." Nothing else changes, and no state is lost.
+- **The user ends the share from the browser's own bar** → the stream's `ended` event fires; the capture bar disappears and the buttons return without an error.
 
 ## What Was Simplified and Why
 
@@ -233,6 +241,7 @@ demoscript/
 - **The clock is word-count arithmetic**, not audio analysis — no audio work belongs in this app.
 - **One generation call for all scenes** instead of a call per scene — fewer rate-limit hits, and the model can distribute time sensibly.
 - **The course's own criteria are a constant**, filled by a link, rather than being fetched from anywhere.
+- **Screen capture shares a window and grabs frames** instead of recording video — the product needs stills with notes, and recording would add permission, storage, and trimming work for no demo value. Captured frames are encoded exactly like uploads.
 
 ## Decisions and Open Issues
 

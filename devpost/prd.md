@@ -35,7 +35,7 @@ One surface. No routing, no modals, no settings page.
 
 **Left column, top to bottom:**
 
-- **Upload area** — near-full column width, dashed border. "Drop screenshots here, in the order you'd show them." Below, smaller: "One screenshot is fine too. Add a note for each thing you'd do on it." A faint illustration of three stacked rectangles. In one corner, quiet small text: "Don't include passwords or personal data."
+- **Upload area** — near-full column width, dashed border. "Drop screenshots here, in the order you'd show them." Below, smaller: "One screenshot is fine too. Add a note for each thing you'd do on it." Two buttons underneath: "Choose screenshots" (file picker) and "Capture screenshots" (share your own screen and grab frames). A faint illustration of three stacked rectangles. In one corner, quiet small text: "Don't include passwords or personal data."
 - **Thumbnail row** — once screenshots land, the dashed area becomes numbered, draggable thumbnails. Each has a note field ("what do you do here?") and a "+ add another action" link that creates an additional action on the same screenshot.
 - **Rubric box** — labelled as a question, not a form field: "What will your video be judged on?" Tall text area with grey placeholder examples ("Design, Innovation, Presentation" / "Technical depth 40%, Documentation 20%, Demo 20%"). Under it, a small link: "Use the Build With AI: Basics criteria," which fills it in.
 - **Controls row** — tone segmented control (Professional / Energetic / Storytelling) and a length slider or stepper, 1–3 minutes, default 2.
@@ -71,6 +71,22 @@ The right column's empty state is not decoration. It is the whole product drawn 
 - [ ] Dropping two screenshots produces two numbered thumbnails in drop order.
 - [ ] Dragging the second thumbnail before the first changes the scene order in the generated script.
 - [ ] Adding a second action to one screenshot produces two scenes from that one image.
+
+### Capturing frames from your own screen
+
+For projects that only have one page, a single screenshot can't show "before the filter" and "after the filter." Capture makes those states into separate frames.
+
+- "Capture screenshots" sits beside "Choose screenshots" in the upload area.
+- Pressing it asks the browser to share a screen or window. Once sharing starts, a small bar replaces the buttons: "Sharing your screen. Switch to your project, then capture a frame."
+- "Capture frame" grabs the current frame and adds it as the next numbered thumbnail, with an empty note field, exactly like a dropped file.
+- The share stays open so several frames can come from the same page. "Stop sharing" ends it and returns the buttons.
+- Every frame follows the 6-screenshot cap.
+- If sharing is refused or unsupported, the app says so plainly and points at "Choose screenshots" — it never fails silently.
+- Nothing is recorded: no video, no audio, no frames saved anywhere except the thumbnail list in memory.
+
+- [ ] Sharing a window and pressing "Capture frame" twice produces two thumbnails in order.
+- [ ] "Stop sharing" ends the share and returns the two buttons.
+- [ ] Refusing the browser's share prompt shows a plain message and leaves the app usable.
 
 ### The rubric (optional)
 
@@ -170,6 +186,8 @@ The confirm step happens **after** the button, not before — the learner's deci
 - **No rubric** — script and scenes work; criteria panel absent; no prompting to add one.
 - **Rubric present, nothing covered yet** — criteria all red; the panel explains what is missing rather than scoring zero.
 - **Unreadable or non-screenshot image** — the scene says it couldn't read the image and asks for a note; it does not invent a description.
+- **Screen sharing blocked or unsupported** — a plain line in the upload area says sharing was refused or isn't available, and points at "Choose screenshots." The rest of the app is unaffected.
+- **Screen share ends outside the app** (the user clicks the browser's own "Stop sharing") — the capture bar disappears on its own and the buttons return.
 - **Empty rubric text after clearing** — panel disappears; existing scenes stay.
 - **Time limit mismatch** — the rubric's stated time differs from the chosen length; a plain notice appears and the user's length stands.
 - **Over the limit** — the clock and the cut flags show it immediately.
@@ -185,6 +203,7 @@ The confirm step happens **after** the button, not before — the learner's deci
 - **User's length wins, with a mismatch notice** — revised during PRD: the scope said no stated limit meant no clock. The learner's resolution: the user sets the length (1–3 min, default 2), and if the rubric states a different required time, the app names the mismatch without overriding.
 - **Confirm step lands after generation, not before** — cheaper to use, and it matches how people judge output. The app shows the description each scene was built from, and that description is editable.
 - **Human notes outrank the model's reading of the image** — the learner's own insight: "this took me three days and nobody will notice" produces better lines than a vision description.
+- **Screenshots can be captured inside the app, not only dropped in** — the learner's addition: a one-page project's flow only exists across several frames of the same page, so the app shares the user's screen and grabs a frame per state. Frames enter the same thumbnail list as dropped files.
 - **The empty right column is a promise, not a blank** — ghosted clock and cards make the product legible before any input. Criteria circles are deliberately excluded from the empty state: they appear only after a rubric is pasted, so the app never displays labels the user didn't give it.
 - **A sample project opens the demo** — a one-click example shows the payoff in two seconds and gives the demo video its first beat.
 
@@ -192,6 +211,7 @@ The confirm step happens **after** the button, not before — the learner's deci
 
 - One light, calm page with the two-column layout above
 - Screenshot upload with numbering, drag reorder, per-screenshot notes, and multiple actions per screenshot
+- In-app screen capture: share a window, grab a frame per state, stop when done
 - Optional free-text rubric, with a one-click course-criteria filler
 - Tone selector and 1–3 minute length control
 - Script generation producing scenes with spoken lines, captions, and visible source descriptions
