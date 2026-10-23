@@ -5,6 +5,8 @@ import SkeletonStoryboard from "@/components/SkeletonStoryboard";
 import Storyboard from "@/components/Storyboard";
 import UploadColumn from "@/components/UploadColumn";
 import VideoPlayer from "@/components/VideoPlayer";
+import ModeStrip, { type Mode } from "@/components/ModeStrip";
+import RehearsalPanel from "@/components/RehearsalPanel";
 import { frameFromVideo, startScreenShare } from "@/lib/capture";
 import { canFloatCapture, openFloatingBar, type FloatingBar } from "@/lib/floatingBar";
 import { fileToDataUrl, isImage } from "@/lib/images";
@@ -63,6 +65,7 @@ export default function Page() {
   const [elapsed, setElapsed] = useState(0);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const [rewritingSceneId, setRewritingSceneId] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>("script");
   const streamRef = useRef<MediaStream | null>(null);
   const captureVideoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<HTMLVideoElement | null>(null);
@@ -221,6 +224,7 @@ export default function Page() {
           setRecording(result);
           setScript(null);
           setActiveSceneId(null);
+          setMode("script");
           setRecordingActive(false);
           setRecordingStarting(false);
           setElapsed(0);
@@ -252,6 +256,7 @@ export default function Page() {
     setElapsed(0);
     setScript(null);
     setActiveSceneId(null);
+    setMode("script");
     void clearSession();
   }, []);
 
@@ -462,6 +467,7 @@ export default function Page() {
 
         setScript({ scenes, criteria: result.criteria });
         setActiveSceneId(scenes[0]?.id ?? null);
+        setMode("script");
         return;
       }
 
@@ -557,6 +563,7 @@ export default function Page() {
       }));
 
       setScript({ scenes, criteria: result.criteria });
+      setMode("script");
 
       if (unread.length > 0) setNotice(unreadLine(unread));
     } catch (error) {
@@ -706,37 +713,51 @@ export default function Page() {
             />
           ) : (
             <>
-              {recording && recordingUrl && script ? (
-                <VideoPlayer
-                  src={recordingUrl}
-                  scenes={script.scenes}
-                  durationSeconds={recording.durationSeconds}
-                  activeSceneId={activeSceneId}
-                  onActiveScene={setActiveSceneId}
-                  videoRef={playerRef}
-                />
+              {script && script.scenes.length > 0 ? (
+                <ModeStrip mode={mode} onChange={setMode} />
               ) : null}
-              {script ? (
-                <Storyboard
+
+              {script && mode === "rehearse" && script.scenes.length > 0 ? (
+                <RehearsalPanel
                   scenes={script.scenes}
-                  shots={storyboardShots}
-                  criteria={script.criteria}
                   lengthSeconds={minutes * 60}
-                  activeSceneId={activeSceneId}
-                  onSeekScene={recording ? seekScene : undefined}
-                  statedMinutes={statedMinutes}
-                  editable
-                  rewritingSceneId={rewritingSceneId}
-                  onUpdateScene={updateScene}
-                  onRewriteScene={(sceneId) => void rewriteScene(sceneId)}
-                  onDeleteScene={deleteScene}
+                  onExit={() => setMode("script")}
                 />
               ) : (
-                <SkeletonStoryboard
-                  onTrySample={() => setView("sample")}
-                  minutes={minutes}
-                  busyLine={running ? status : null}
-                />
+                <>
+                  {recording && recordingUrl && script ? (
+                    <VideoPlayer
+                      src={recordingUrl}
+                      scenes={script.scenes}
+                      durationSeconds={recording.durationSeconds}
+                      activeSceneId={activeSceneId}
+                      onActiveScene={setActiveSceneId}
+                      videoRef={playerRef}
+                    />
+                  ) : null}
+                  {script ? (
+                    <Storyboard
+                      scenes={script.scenes}
+                      shots={storyboardShots}
+                      criteria={script.criteria}
+                      lengthSeconds={minutes * 60}
+                      activeSceneId={activeSceneId}
+                      onSeekScene={recording ? seekScene : undefined}
+                      statedMinutes={statedMinutes}
+                      editable
+                      rewritingSceneId={rewritingSceneId}
+                      onUpdateScene={updateScene}
+                      onRewriteScene={(sceneId) => void rewriteScene(sceneId)}
+                      onDeleteScene={deleteScene}
+                    />
+                  ) : (
+                    <SkeletonStoryboard
+                      onTrySample={() => setView("sample")}
+                      minutes={minutes}
+                      busyLine={running ? status : null}
+                    />
+                  )}
+                </>
               )}
             </>
           )}

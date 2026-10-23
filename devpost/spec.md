@@ -118,8 +118,8 @@ PRD ref: `prd.md > Screens and Layout`.
 A `<video>` element bound to an object URL from the stored blob, muted. A thin timeline under it marks every scene at its `startSeconds`. Clicking a scene card seeks to that moment and highlights the row that contains the playhead. No trimming, no scrubbing controls beyond the native bar.
 PRD ref: `prd.md > Playing the recording`.
 
-### `ModeStrip` — script, rehearse, record
-A quiet row above the storyboard, shown only once a script exists: **Script · Rehearse · Record**. It switches what the right column is doing without leaving the page.
+### `ModeStrip` — script and rehearsal
+A quiet row above the storyboard, shown only once a script exists: **Script · Rehearse**. Record joins the strip when the voice pass exists; it is not offered before there is something to record. It switches what the right column is doing without leaving the page.
 PRD ref: `prd.md > Rehearsing it`, `prd.md > Recording the screen`.
 
 ### `RehearsalPanel` — the clock with eyes
