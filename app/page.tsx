@@ -1,19 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import SkeletonStoryboard from "@/components/SkeletonStoryboard";
 import Storyboard from "@/components/Storyboard";
 import UploadColumn from "@/components/UploadColumn";
+import { fileToDataUrl, isImage } from "@/lib/images";
 import { sampleProject, sampleRedNotes } from "@/lib/sampleProject";
+import type { Shot, Tone } from "@/lib/types";
+
+const MAX_SHOTS = 6;
 
 export default function Page() {
   const [view, setView] = useState<"empty" | "sample">("empty");
+  const [shots, setShots] = useState<Shot[]>([]);
+  const [rubric, setRubric] = useState("");
+  const [tone, setTone] = useState<Tone>("professional");
+  const [minutes, setMinutes] = useState(2);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const isSample = view === "sample";
-  const shots = isSample ? sampleProject.shots : [];
-  const rubric = isSample ? sampleProject.rubric : "";
-  const tone = isSample ? sampleProject.tone : "professional";
-  const minutes = isSample ? sampleProject.lengthSeconds / 60 : 2;
+
+  const addFiles = useCallback(
+    async (files: File[]) => {
+      setNotice(null);
+      const images = files.filter(isImage);
+
+      if (images.length !== files.length) {
+        setNotice("Only images can be used as screenshots.");
+      }
+
+      const room = MAX_SHOTS - shots.length;
+      if (images.length > room) {
+        setNotice("6 at a time — that's already a full 3-minute script.");
+      }
+
+      const accepted = images.slice(0, Math.max(0, room));
+      if (accepted.length === 0) return;
+
+      try {
+        const next = await Promise.all(
+          accepted.map(async (file) => ({
+            id:
+              typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            fileName: file.name,
+            dataUrl: await fileToDataUrl(file),
+            note: "",
+            actions: [],
+          })),
+        );
+        setShots((previous) => [...previous, ...next].slice(0, MAX_SHOTS));
+      } catch (error) {
+        setNotice(
+          error instanceof Error ? error.message : "That file couldn't be read.",
+        );
+      }
+    },
+    [shots.length],
+  );
+
+  const updateShot = useCallback((shotId: string, update: (shot: Shot) => Shot) => {
+    setShots((previous) =>
+      previous.map((shot) => (shot.id === shotId ? update(shot) : shot)),
+    );
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -26,19 +77,60 @@ export default function Page() {
             Turn your screenshots into a demo script.
           </p>
         </div>
-        {isSample ? (
-          <p className="text-[11.5px] text-faint">Sample project</p>
-        ) : null}
+        {isSample ? <p className="text-[11.5px] text-faint">Sample project</p> : null}
       </header>
 
       <main className="mx-auto grid max-w-page grid-cols-1 gap-10 px-6 pb-20 sm:px-8 md:grid-cols-[45fr_55fr] md:gap-0">
         <section className="md:border-r md:border-hairline md:pr-10">
           <UploadColumn
-            shots={shots}
-            rubric={rubric}
-            tone={tone}
-            minutes={minutes}
+            shots={isSample ? sampleProject.shots : shots}
+            rubric={isSample ? sampleProject.rubric : rubric}
+            tone={isSample ? sampleProject.tone : tone}
+            minutes={isSample ? sampleProject.lengthSeconds / 60 : minutes}
             isSample={isSample}
+            maxShots={MAX_SHOTS}
+            notice={notice}
+            onAddFiles={addFiles}
+            onRubricChange={setRubric}
+            onToneChange={setTone}
+            onMinutesChange={(next) => setMinutes(Math.min(3, Math.max(1, next)))}
+            onNoteChange={(shotId, note) =>
+              updateShot(shotId, (shot) => ({ ...shot, note }))
+            }
+            onAddAction={(shotId) =>
+              updateShot(shotId, (shot) => ({
+                ...shot,
+                actions: [
+                  ...shot.actions,
+                  {
+                    id:
+                      typeof crypto !== "undefined" && "randomUUID" in crypto
+                        ? crypto.randomUUID()
+                        : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                    note: "",
+                  },
+                ],
+              }))
+            }
+            onActionNoteChange={(shotId, actionId, note) =>
+              updateShot(shotId, (shot) => ({
+                ...shot,
+                actions: shot.actions.map((action) =>
+                  action.id === actionId ? { ...action, note } : action,
+                ),
+              }))
+            }
+            onRemoveShot={(shotId) =>
+              setShots((previous) => previous.filter((shot) => shot.id !== shotId))
+            }
+            onReorder={(from, to) =>
+              setShots((previous) => {
+                const next = [...previous];
+                const [moved] = next.splice(from, 1);
+                next.splice(to, 0, moved);
+                return next;
+              })
+            }
             onClearSample={() => setView("empty")}
           />
         </section>
@@ -53,7 +145,7 @@ export default function Page() {
               redNotes={sampleRedNotes}
             />
           ) : (
-            <SkeletonStoryboard onTrySample={() => setView("sample")} />
+            <SkeletonStoryboard onTrySample={() => setView("sample")} minutes={minutes} />
           )}
         </section>
       </main>

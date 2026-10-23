@@ -19,7 +19,7 @@ Build mode: fast mode
   Learner check: Open `localhost:3000`. Look at the empty screen — does it read as "a quiet desk, not a dashboard" and does it explain itself? Then click "Try it with a sample project" and say whether the red criterion lands as the thing that matters.
   Commit: `Add page shell, empty-state storyboard, and sample project`
 
-- [ ] **2. Screenshots go in**
+- [x] **2. Screenshots go in**
   Becomes usable: Drop screenshots and they become numbered thumbnails you can reorder, each with a "what do you do here?" note field and a "+ add another action" link. A seventh is refused with a plain line. Tone and length controls are live. The button says what's missing until there's an image. No network calls yet.
   Why now: The input column is where the human's knowledge enters the product, and notes outrank what the model can see. Getting it right before spending API calls means later debugging is about the model, not the form.
   PRD ref: `prd.md > Uploading and arranging screenshots`, `prd.md > Tone and length`, `prd.md > Screens and Layout`

@@ -1,7 +1,11 @@
+import { formatClock } from "@/lib/timing";
+
 export default function SkeletonStoryboard({
   onTrySample,
+  minutes,
 }: {
   onTrySample: () => void;
+  minutes: number;
 }) {
   return (
     <div className="relative min-h-[520px]">
@@ -9,7 +13,9 @@ export default function SkeletonStoryboard({
         <div className="mb-6">
           <div className="mb-2 flex items-baseline justify-between">
             <span className="text-[12px] text-muted">Running time</span>
-            <span className="text-[13px] tabular-nums text-muted">0:00 / 2:00</span>
+            <span className="text-[13px] tabular-nums text-muted">
+              0:00 / {formatClock(minutes * 60)}
+            </span>
           </div>
           <div className="h-px w-full bg-hairline" />
         </div>
