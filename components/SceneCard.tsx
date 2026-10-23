@@ -6,24 +6,47 @@ export default function SceneCard({
   shot,
   index,
   covers = [],
+  active = false,
+  onSeek,
 }: {
   scene: Scene;
   shot?: Shot;
   index: number;
   covers?: string[];
+  active?: boolean;
+  onSeek?: () => void;
 }) {
   return (
-    <article className="grid grid-cols-[92px_1fr] gap-5 border-b border-hairline py-5">
+    <article
+      className={`grid grid-cols-[92px_1fr] gap-5 border-b border-hairline py-5 ${
+        active ? "bg-white/55" : ""
+      }`}
+    >
       <div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={shot?.dataUrl ?? ""}
-          alt={shot?.note ?? "Screenshot for this scene"}
-          className="h-[62px] w-[92px] border border-hairline object-cover"
-        />
-        <p className="mt-2 text-[11px] tabular-nums text-faint">
-          {formatClock(scene.seconds)}
-        </p>
+        {shot?.dataUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={shot.dataUrl}
+            alt={shot.note || "Screenshot for this scene"}
+            className="h-[62px] w-[92px] border border-hairline object-cover"
+          />
+        ) : (
+          <div className="h-[62px] w-[92px] border border-hairline bg-paper-sunk" />
+        )}
+        {scene.startSeconds != null && onSeek ? (
+          <button
+            type="button"
+            onClick={onSeek}
+            className="mt-2 block text-left text-[11px] tabular-nums text-accent underline decoration-hairline underline-offset-2 hover:decoration-accent"
+          >
+            ▸ {formatClock(scene.startSeconds)}
+          </button>
+        ) : (
+          <p className="mt-2 text-[11px] tabular-nums text-faint">
+            {formatClock(scene.seconds)}
+          </p>
+        )}
       </div>
       <div className="min-w-0">
         <div className="flex items-start gap-3">

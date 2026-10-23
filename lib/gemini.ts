@@ -46,7 +46,15 @@ function getClient(): GoogleGenAI {
   return client;
 }
 
-type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
+/** Files API calls need the same client; the key still never leaves the server. */
+export function getGeminiClient(): GoogleGenAI {
+  return getClient();
+}
+
+type Part =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } }
+  | { fileData: { fileUri: string; mimeType: string } };
 
 function isRateLimit(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -188,6 +196,45 @@ export const scriptSchema: Schema = {
           },
         },
         required: ["shotId", "actionId", "spokenLine", "caption", "covers"],
+      },
+    },
+  },
+  required: ["criteria", "scenes"],
+};
+
+export const videoScriptSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    criteria: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          label: { type: Type.STRING },
+          source: { type: Type.STRING },
+        },
+        required: ["id", "label", "source"],
+      },
+    },
+    scenes: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          startSeconds: {
+            type: Type.NUMBER,
+            description:
+              "The second in the recording where this scene begins. 0 for the first, increasing afterwards.",
+          },
+          spokenLine: { type: Type.STRING },
+          caption: { type: Type.STRING },
+          covers: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
+        },
+        required: ["startSeconds", "spokenLine", "caption", "covers"],
       },
     },
   },

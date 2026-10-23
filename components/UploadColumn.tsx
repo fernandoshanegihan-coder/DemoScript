@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import CaptureBar from "@/components/CaptureBar";
+import RecordingStrip from "@/components/RecordingStrip";
 import type { Shot, Tone } from "@/lib/types";
 
 const TONES: { id: Tone; label: string }[] = [
@@ -35,6 +36,14 @@ type Props = {
   onRemoveShot: (shotId: string) => void;
   onReorder: (from: number, to: number) => void;
   onClearSample: () => void;
+  recorded: { posterDataUrl: string; durationSeconds: number } | null;
+  recordingStarting: boolean;
+  recording: boolean;
+  elapsedSeconds: number;
+  limitSeconds: number;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
+  onRemoveRecording: () => void;
 };
 
 export default function UploadColumn({
@@ -62,11 +71,20 @@ export default function UploadColumn({
   onRemoveShot,
   onReorder,
   onClearSample,
+  recorded,
+  recordingStarting,
+  recording,
+  elapsedSeconds,
+  limitSeconds,
+  onStartRecording,
+  onStopRecording,
+  onRemoveRecording,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const hasShots = shots.length > 0;
+  const hasMaterial = hasShots || recorded !== null;
 
   function pick(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -84,13 +102,27 @@ export default function UploadColumn({
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
-          if (isSample) return;
+          if (isSample || recorded) return;
           pick(event.dataTransfer.files);
         }}
         className={`border border-dashed px-5 py-5 transition-colors ${
           dragging ? "border-accent bg-white/50" : "border-hairline"
         }`}
       >
+        {recorded || recording || recordingStarting ? (
+          <RecordingStrip
+            posterDataUrl={recorded?.posterDataUrl ?? ""}
+            durationSeconds={recorded?.durationSeconds ?? 0}
+            limitSeconds={limitSeconds}
+            recording={recording}
+            starting={recordingStarting}
+            elapsedSeconds={elapsedSeconds}
+            onStop={onStopRecording}
+            onRemove={onRemoveRecording}
+            onRecordAgain={onStartRecording}
+          />
+        ) : (
+          <>
         {sharing ? (
           <CaptureBar
             onCapture={onCaptureFrame}
@@ -199,6 +231,17 @@ export default function UploadColumn({
                 >
                   Capture screenshots
                 </button>
+                <button
+                  type="button"
+                  onClick={onStartRecording}
+                  disabled={isSample}
+                  className="mt-4 ml-2 border border-hairline px-3 py-1.5 text-[12.5px] text-ink hover:border-accent disabled:cursor-default disabled:text-faint"
+                >
+                  Record screen
+                </button>
+                <p className="mt-2.5 text-[11.5px] text-faint">
+                  Or record up to three minutes of clicking through it.
+                </p>
               </div>
               <svg
                 aria-hidden
@@ -217,6 +260,8 @@ export default function UploadColumn({
             </p>
           </div>
         )}
+          </>
+        )}
 
         <input
           ref={inputRef}
@@ -231,7 +276,7 @@ export default function UploadColumn({
         />
       </div>
 
-      {hasShots && !isSample ? (
+      {hasShots && !isSample && !recorded && !recording && !recordingStarting ? (
         <div className="mt-2 flex items-center justify-between text-[11.5px]">
           <button
             type="button"
@@ -246,6 +291,13 @@ export default function UploadColumn({
             className="text-accent underline decoration-hairline underline-offset-2 hover:decoration-accent"
           >
             Capture screenshots
+          </button>
+          <button
+            type="button"
+            onClick={onStartRecording}
+            className="text-accent underline decoration-hairline underline-offset-2 hover:decoration-accent"
+          >
+            Record screen
           </button>
           <span className="text-faint">
             {shots.length} of {maxShots}
@@ -329,7 +381,7 @@ export default function UploadColumn({
         <button
           type="button"
           onClick={onGenerate}
-          disabled={!hasShots || isSample || busy}
+          disabled={!hasMaterial || isSample || busy || recording || recordingStarting}
           className="w-full bg-accent px-4 py-2.5 text-[13.5px] text-paper transition-opacity disabled:cursor-not-allowed disabled:bg-paper-sunk disabled:text-faint"
         >
           {busy ? (status ?? "Working…") : "Make my script"}
@@ -337,11 +389,15 @@ export default function UploadColumn({
         <p className="mt-2 text-[12px] text-muted">
           {isSample
             ? "You're looking at a sample project."
-            : busy
-              ? "Keep this tab open — usually ten to thirty seconds."
-              : hasShots
-                ? "Ready when you are."
-                : "Add a screenshot to start."}
+            : recordingStarting
+              ? "Pick a screen to start recording."
+              : recording
+                ? "Stop the recording first."
+                : busy
+                  ? "Keep this tab open — a recording takes a little longer to read."
+                  : hasMaterial
+                    ? "Ready when you are."
+                    : "Record your screen, or add a screenshot to start."}
         </p>
         {isSample ? (
           <button

@@ -14,14 +14,15 @@ Source: `scope.md > The Unique Kernel`, `The Core Loop`, `What "Working" Looks L
 1. **Arrive.** One page, no signup, no navigation. A small wordmark, one line under it: "Turn your screenshots into a demo script." Two columns: inputs left, output right.
 2. **Understand the promise before doing anything.** The right column is not blank — it shows a ghosted storyboard: three empty scene cards and a clock reading `0:00 / 2:00`. Over it, one sentence: "Your script will appear here, scene by scene, with a checklist showing what each scene proves." No criteria circles yet — those appear only once a rubric exists.
 3. **Optional shortcut.** "Try it with a sample project" fills both columns with a cached example in one click. This is where the demo video starts.
-4. **Drop in screenshots.** One or several, in the order they'd be shown. Each becomes a numbered, draggable thumbnail with a note field — "what do you do here?" — and a "+ add another action" link, so a one-page app can still produce several scenes.
+4. **Give it material.** Drop in screenshots, or capture a one-page project frame by frame — or, for the richer path, press **Record** and click through the project for up to three minutes. Each screenshot becomes a numbered, draggable thumbnail with a note field — "what do you do here?" — and a "+ add another action" link, so a one-page app can still produce several scenes.
 5. **Paste a rubric, or don't.** The rubric box is optional and free text. A link fills in the course's own criteria as an example.
 6. **Choose tone and length.** Professional / Energetic / Storytelling, and a length from 1 to 3 minutes defaulting to 2.
-7. **Press "Make my script."** Scenes appear on the right: a spoken line, a caption, the thumbnail, and the description the app based the scene on.
+7. **Press "Make my script."** Scenes appear on the right: a spoken line, a caption, the thumbnail, and the description the app based the scene on. With a recording, every scene also has a moment in the footage.
 8. **Fix what's wrong.** Editing a scene's description or line updates the scene and the criteria panel.
 9. **Read the criteria panel.** Criteria covered by the current script are green; uncovered ones are red. Red is a to-do list.
 10. **Cut.** Scenes that eat time and prove nothing are flagged as cut candidates.
-11. **Copy the script** and read it aloud while recording somewhere else.
+11. **Hear it, if there's footage.** The recording plays beside the script, each scene jumping to its moment, and the generated narration reads the line in the chosen voice, stretched to fit the scene.
+12. **Take it away.** Copy the script, or export the recording with the narration as one video file.
 
 Success: at least one criterion goes from red to green because the user added or reworded a scene, and the script reads like something a person would say out loud.
 
@@ -35,7 +36,8 @@ One surface. No routing, no modals, no settings page.
 
 **Left column, top to bottom:**
 
-- **Upload area** — near-full column width, dashed border. "Drop screenshots here, in the order you'd show them." Below, smaller: "One screenshot is fine too. Add a note for each thing you'd do on it." Two buttons underneath: "Choose screenshots" (file picker) and "Capture screenshots" (share your own screen and grab frames). A faint illustration of three stacked rectangles. In one corner, quiet small text: "Don't include passwords or personal data."
+- **Upload area** — near-full column width, dashed border. "Drop screenshots here, in the order you'd show them." Below, smaller: "One screenshot is fine too. Add a note for each thing you'd do on it." Three buttons underneath: "Choose screenshots" (file picker), "Capture screenshots" (share your own screen and grab frames), and "Record screen" (up to three minutes of footage). A faint illustration of three stacked rectangles. In one corner, quiet small text: "Don't include passwords or personal data."
+- **Recording strip** — once a recording exists, the buttons give way to a compact strip: a poster frame, the length (`1:42 of 3:00`), a play/pause control, "Replace recording", and "Remove". It sits where the thumbnails would, because a recording replaces them as the source of scenes.
 - **Thumbnail row** — once screenshots land, the dashed area becomes numbered, draggable thumbnails. Each has a note field ("what do you do here?") and a "+ add another action" link that creates an additional action on the same screenshot.
 - **Rubric box** — labelled as a question, not a form field: "What will your video be judged on?" Tall text area with grey placeholder examples ("Design, Innovation, Presentation" / "Technical depth 40%, Documentation 20%, Demo 20%"). Under it, a small link: "Use the Build With AI: Basics criteria," which fills it in.
 - **Controls row** — tone segmented control (Professional / Energetic / Storytelling) and a length slider or stepper, 1–3 minutes, default 2.
@@ -45,6 +47,8 @@ One surface. No routing, no modals, no settings page.
 
 - **Empty state** — a ghosted skeleton storyboard at near-watermark contrast: three empty scene cards, each with a grey thumbnail box on the left, grey text bars on the right, and a timer chip reading `0:00`. Across the top, a thin clock bar labelled `0:00 / 2:00`. Centered over the skeleton, at normal contrast: "Your script will appear here, scene by scene, with a checklist showing what each scene proves." Below it, a quiet text link: "Try it with a sample project." The criteria circle column is **not** part of this state — it appears only after a rubric is pasted, so the app never shows labels the user didn't give it.
 - **Filled state** — the clock bar tracks the script against the chosen length (`2:41 / 3:00`), scene cards stack in order with thumbnail, spoken line, caption, and per-scene description, and the criteria circles fill from red to green.
+- **Recording state** — the clip plays at the top of the column with a thin timeline marked at each scene. Clicking a scene seeks the video to that moment and highlights it. Under the player: a voice choice (three names), a "Play with narration" control, and "Export narrated video".
+- **Export state** — the player becomes a progress line: "Rendering 0:47 of 1:42 — keep this tab visible." On finish, a quiet link: "Download demo.webm". Leaving the page cancels it and says so once.
 
 The right column's empty state is not decoration. It is the whole product drawn in grey: clock, cards, criteria. Someone who saw only that screen would understand what the app does.
 
@@ -88,6 +92,45 @@ For projects that only have one page, a single screenshot can't show "before the
 - [ ] Sharing a window and pressing "Capture frame" twice produces two thumbnails in order.
 - [ ] "Stop sharing" ends the share and returns the two buttons.
 - [ ] Refusing the browser's share prompt shows a plain message and leaves the app usable.
+
+### Recording your screen
+
+- One button starts a screen recording. It stops when you press **Stop recording**, or on its own at 3:00.
+- The clip stays in this browser tab, so a reload doesn't lose it. Nothing is uploaded anywhere except the one model call.
+- Picture only — no microphone. Your own voice is deliberately absent, because the app supplies the narration; one voice at a time.
+- While recording, the button area shows the elapsed time and a stop control. The rest of the page stays usable; generation waits for the recording to end.
+- One recording at a time. Recording again replaces the previous clip after a confirm.
+
+- [ ] Recording stops on its own at 3:00 and the clip is saved to the tab.
+- [ ] A reload returns the clip and its script without calling the model again.
+
+### Playing the recording
+
+- The clip plays beside the script. Each scene shows the moment it starts, and clicking the scene seeks there.
+- A thin timeline under the player marks the scenes, so the shape of the demo is visible before pressing play.
+- The recording's own audio is muted whenever narration is on. There is no mixing.
+
+- [ ] Clicking scene 3 seeks the video to scene 3's moment.
+- [ ] Playback never plays the recording's own audio underneath the voice.
+
+### Narration
+
+- Three voices, chosen once for the script; changing the choice re-renders on the next play.
+- Each scene's line is synthesized separately, then played between 0.85× and 1.15× so it fits the scene it belongs to. If it still doesn't fit at 0.85×, it is allowed to finish over the following scene rather than being cut.
+- Narration is generated on demand, not at script time, so quota is only spent when someone listens.
+
+- [ ] Changing the voice re-renders the narration on the next play.
+- [ ] A line shorter than its window leaves silence instead of padding.
+- [ ] A long line is sped up within the limit rather than cut.
+
+### Exporting the narrated video
+
+- One control renders the clip and the narration into a single `.webm` and offers it for download.
+- Rendering happens in real time — a 1:42 clip takes about 1:42 — and needs the tab to stay visible. If it is hidden, rendering pauses and says so.
+- The exported file contains the recording's picture and the generated voice only.
+
+- [ ] The exported file plays in another player with the narration and no original audio.
+- [ ] The download link appears only after rendering finishes.
 
 ### The rubric (optional)
 
@@ -194,11 +237,16 @@ The confirm step happens **after** the button, not before — the learner's deci
 - **Time limit mismatch** — the rubric's stated time differs from the chosen length; a plain notice appears and the user's length stands.
 - **Over the limit** — the clock and the cut flags show it immediately.
 - **Generation failure** — a plain message with a retry, and the user's screenshots and notes stay put.
-- **Nothing persists between sessions.** No accounts, no saved projects, no history. A reload starts clean.
+- **A recording reloads with its script** — the clip and the scenes it produced are kept in this browser tab, so a refresh doesn't destroy three minutes of work. Nothing else is stored: no accounts, no history, no second project.
+- **Recording in progress, generation paused** — the button says "Stop the recording first" and the rest of the page stays usable.
+- **Narration rendered, playback on** — the recording's own audio is muted and each scene's voice starts at its moment, with the player showing which scene is speaking.
+- **Narration unavailable** (quota, offline, refused) — a plain line under the player and the script still works; no silent failure.
+- **Export running** — a progress line with the clip's length, a note to keep the tab visible, and a stop control. Hiding the tab pauses it.
+- **Export failed** — a plain message, the recording and script untouched, and one click to try again.
 
 ## Product Decisions
 
-- **Script and captions only; no video generation or in-app recording** — recording happens outside, so the app's job ends where the camera starts. *(scope)*
+- **Script, recording, narration, and export — but not video generation** — revised after slice 3. The first scope said the app ends where the camera starts; the learner then asked for a recording path with a generated voice and one exported file, because the text script still leaves the rehearsal and the final file to chance. *(Revised; was: script and captions only.)*
 - **No signup, no configuration** — if it asks for much, it loses to winging the recording. *(scope)*
 - **The kernel is the red criterion and the cut, not the prose** — anyone can get a script from a chatbot; the outside judgment is the product. *(scope)*
 - **Rubric is optional, and the button does not require it** — the scope said the script still works with no rubric, but the walkthrough gated the button on a rubric. On being shown the conflict, the learner chose the scope's version: no rubric required.
@@ -208,6 +256,9 @@ The confirm step happens **after** the button, not before — the learner's deci
 - **Screenshots can be captured inside the app, not only dropped in** — the learner's addition: a one-page project's flow only exists across several frames of the same page, so the app shares the user's screen and grabs a frame per state. Frames enter the same thumbnail list as dropped files.
 - **The empty right column is a promise, not a blank** — ghosted clock and cards make the product legible before any input. Criteria circles are deliberately excluded from the empty state: they appear only after a rubric is pasted, so the app never displays labels the user didn't give it.
 - **A sample project opens the demo** — a one-click example shows the payoff in two seconds and gives the demo video its first beat.
+- **One voice at a time** — the recording carries picture only. When narration plays, the recording's own audio is muted, never mixed, so there is no doubling and no half-heard voice underneath.
+- **The voice stretches to fit its moment** — each line is played between 0.85× and 1.15× to match its scene. Speed is preferable to cutting a line or letting it talk over the next scene.
+- **Narration is paid for only when heard** — voices render on play, not at generation time, so a script you never listen to costs nothing.
 
 ## What We're Building
 
@@ -223,13 +274,17 @@ The confirm step happens **after** the button, not before — the learner's deci
 - Running clock against the chosen length, plus the rubric mismatch notice
 - Cached sample project filling both columns
 - Copy the full script as plain text
+- Screen recording up to three minutes, kept in the tab across reloads
+- The clip playing beside the script, scenes seeking to their moments
+- Generated narration in three voices, stretched to fit each scene
+- Export of the recording plus narration as one `.webm`
 
 ## Deferred From the POC
 
-- **Saving and returning to a project** — implies storage and identity; a reload starting clean is acceptable for a two-minute demo.
-- **Export to SRT or other caption formats** — captions are visible and copyable; file export is a convenience, not the kernel.
-- **In-app teleprompter / read mode** — the script is meant to be glanced at while recording elsewhere; a read mode is a second surface.
-- **Voice, music, or timing automation** — those belong to editing, which the app deliberately does not do.
+- **Saved projects across sessions** — a recording and its script survive a reload in the same tab; a project list with a name and a date would need identity and storage the app deliberately avoids.
+- **Export to SRT or other caption formats** — captions are visible and copyable; a subtitle file is a convenience, not the kernel.
+- **In-app teleprompter / read mode** — the script is meant to be glanced at while the clip plays; a read mode is a second surface.
+- **Music, multiple voices within one script, or cloning the user's voice** — one generated voice at a time is the decision; the rest is production polish.
 - **Editing the rubric's weights or structure** — free text either parses or it doesn't; a rubric editor is configuration.
 
 ## Possible Later Enhancements
@@ -241,8 +296,8 @@ The confirm step happens **after** the button, not before — the learner's deci
 
 ## Non-Goals
 
-- Generating, editing, or recording video — the learner's explicit decision that this is not a video tool.
-- Accounts, sign-in, or any persistence.
+- Generating footage — the app narrates what you recorded; it never invents the picture.
+- Accounts, sign-in, or cross-session project history. A recording lives in the tab it was made in.
 - Scoring the project or predicting whether it will win.
 - Replacing the user's judgment about what matters in their own work. The app names gaps; the human decides.
 - Polished marketing surface — no pricing page, no features page, no onboarding tour.
@@ -250,3 +305,6 @@ The confirm step happens **after** the button, not before — the learner's deci
 ## Open Questions
 
 1. **How the rubric's time limit is detected** when it is written in prose ("5 minutes including Q&A"). Affects the mismatch notice's reliability, not the layout. Resolve in `4-spec`.
+2. **How precisely a model can timestamp scenes** in a three-minute recording. Seconds of drift are tolerable for the player, less so for cut flags. Check with the learner's own recording in slice 5, and fall back to even spacing if it is off by more than a few seconds.
+3. **Whether the free-tier TTS allowance survives repeated listening.** Rendered audio is cached per scene and voice in memory, so only a voice change or a line edit costs a request. Measure on the first real run.
+4. **Export fidelity.** The renderer re-encodes the picture in real time; check that small text stays legible in the downloaded file, and that Chrome (the demo browser) produces a file that plays elsewhere.

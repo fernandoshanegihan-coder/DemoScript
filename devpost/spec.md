@@ -15,9 +15,13 @@ The server route sends each screenshot to Gemini and asks for a fixed-form answe
 
 Then the server makes one more call with all of that, and gets back a list of scenes (a spoken line, a caption, which screenshot it belongs to, which criteria it covers), plus the parsed criteria. The page drops those into the right column. Editing a scene sends just that scene back for a rewrite.
 
+With a **recording**, the flow is shorter and richer. The browser records the screen with `MediaRecorder`, keeps the clip in this tab (IndexedDB, so a reload doesn't lose it), and uploads it once through Gemini's file API. One call then returns the same scene list, plus the second each scene starts at. The page shows the clip beside the script; clicking a scene seeks the video. A second route turns each line into speech in the chosen voice, and the page plays that audio over the muted video, stretching each line to fit its scene. **Export** re-records the playing video in the browser — picture and generated voice only — and hands back one `.webm` file.
+
+Nothing is saved anywhere except this browser tab: reload keeps a recording and its script, and closing the tab ends them. There is no account and no server-side storage.
+
 The clock is arithmetic, not AI: the app counts words in the spoken lines and divides by about 2.5 words per second. The cut flags are arithmetic too: a scene that takes a big share of the clock and covers no criterion gets flagged. That keeps the app's two judgment calls cheap and predictable.
 
-Nothing is saved. Reload the page and you start clean — which is the point, not a limitation.
+Nothing else is saved. Screenshot work is gone on reload; a recording survives it, because three minutes of clicking is too much to lose to a refresh.
 
 ## The Core Journey Through the System
 
@@ -26,17 +30,21 @@ Nothing is saved. Reload the page and you start clean — which is the point, no
 1. **Open the page** → `app/page.tsx` renders both columns. No data is fetched. The right column is `SkeletonStoryboard.tsx` — ghosted cards and clock, no criteria circles.
 2. **Click "Try it with a sample project"** → `lib/sampleProject.ts` returns a finished storyboard from memory. **No model call.** This is what makes the example instant.
 3. **Drop screenshots** → the browser turns each into a thumbnail and a data URL (the image encoded as text). They sit in page state; nothing is uploaded anywhere yet.
-4. **Add notes, reorder, "+ add another action"** → page state only. Order is the scene order.
-5. **Paste a rubric** → page state. Criteria circles still don't appear; they appear after generation parses the text.
-6. **Press "Make my script"** → browser POSTs to `/api/analyze` with base64 images.
-7. **`/api/analyze`** → for each screenshot, one Gemini call with structured output. Returns `{ description, elements, confident }` per image. Confident results pass through; low-confidence results become the "not clear" prompt.
-8. **Browser POSTs to `/api/script`** → with the descriptions, notes, rubric text, tone, and length.
-9. **`/api/script`** → one Gemini call. Returns `{ criteria: [...], scenes: [...] }` where each scene names the screenshot it came from and the criteria it covers.
-10. **Page renders the storyboard** → `Storyboard.tsx` and `SceneCard.tsx`. `lib/timing.ts` computes each scene's seconds and the total. `lib/cuts.ts` flags expensive scenes with no criteria coverage.
-11. **User edits a scene** → browser POSTs to `/api/script` with a `rewriteScene` payload. Only that scene changes.
-12. **Copy** → the page assembles plain text from page state and writes it to the clipboard. No server call.
+4. **Or record** → `getDisplayMedia` plus `MediaRecorder` produce a `.webm` blob (max 3:00, auto-stop). The blob is written to IndexedDB on stop, so a reload restores it without a model call.
+5. **Add notes, reorder, "+ add another action"** → page state only. Order is the scene order.
+6. **Paste a rubric** → page state. Criteria circles still don't appear; they appear after generation parses the text.
+7. **Press "Make my script"** → with screenshots, the browser POSTs to `/api/analyze`; with a recording, it POSTs the blob to `/api/video`.
+8. **`/api/analyze`** → one Gemini call for all images with structured output, `{ analyses: [{ index, description, elements, confident }] }`. Confident results pass through; low-confidence results become the "not clear" prompt.
+9. **`/api/video`** → uploads the clip through the Files API, waits until it is `ACTIVE`, then one call returns `{ criteria, scenes: [{ shotId, startSeconds, spokenLine, caption, covers }] }`. The file is deleted from Gemini afterwards.
+10. **Browser POSTs to `/api/script`** (screenshot path only) → with the descriptions, notes, rubric text, tone, and length.
+11. **`/api/script`** → one Gemini call. Returns `{ criteria: [...], scenes: [...] }`. The route renumbers criterion ids so scenes and panel cannot disagree.
+12. **Page renders the storyboard** → `Storyboard.tsx` and `SceneCard.tsx`. `lib/timing.ts` computes each scene's seconds and the total; `lib/cuts.ts` flags expensive scenes with no criteria coverage. With a recording, `VideoPlayer.tsx` sits above the cards and the timeline marks every scene.
+13. **Press play with narration** → `NarrationPanel` POSTs each line to `/api/tts` once (cached per scene and voice), decodes the audio, and schedules it against the video's clock. Each line is played between 0.85× and 1.15× to fit its scene.
+14. **Export** → `lib/exportVideo.ts` plays the clip into a canvas, mixes the narration through WebAudio, captures both with `MediaRecorder`, and offers the resulting `.webm`. No server call, no upload.
+15. **User edits a scene** → browser POSTs to `/api/script` with a `rewriteScene` payload. Only that scene changes.
+16. **Copy** → the page assembles plain text from page state and writes it to the clipboard. No server call.
 
-The key boundary: **images leave the browser only when the button is pressed**, and the API key never leaves the server route.
+The key boundary: **images and video leave the browser only when the button is pressed**, and the API key never leaves the server route.
 
 ## Stack
 
@@ -44,13 +52,17 @@ The key boundary: **images leave the browser only when the button is pressed**, 
 |---|---|---|---|
 | Framework | Next.js (App Router), TypeScript | One project holds both the page and the server route that protects the key | https://nextjs.org/docs |
 | Styling | Tailwind CSS | Fast, consistent spacing and color without hand-writing CSS | https://tailwindcss.com/docs |
-| Model | Gemini 3 Flash, free tier | Can read images; free tier is enough for a few dozen calls a day | https://ai.google.dev/gemini-api/docs |
-| SDK | `@google/genai` | Official current SDK; handles structured output cleanly | https://googleapis.github.io/js-genai/ |
+| Model | Gemini 3.5 Flash-Lite (analysis) and 3.8 Flash (script), free tier | Vision plus structured output; limits verified and recorded in the checklist | https://ai.google.dev/gemini-api/docs |
+| Speech | `gemini-3.8-flash-tts` | Returns WAV audio for a line of text; three fixed voices are enough | https://ai.google.dev/gemini-api/docs/speech-generation |
+| SDK | `@google/genai` | Official current SDK; handles structured output and file upload | https://googleapis.github.io/js-genai/ |
+| Recording | `getDisplayMedia` + `MediaRecorder` (WebM) | Already used for frame capture; no plugin, no server | https://developer.mozilla.org/docs/Web/API/MediaRecorder |
+| Tab storage | IndexedDB | Holds a 50–150MB clip across reloads without a server | https://developer.mozilla.org/docs/Web/API/IndexedDB_API |
+| Export | canvas + WebAudio + `MediaRecorder` | One pass renders picture and voice with no ffmpeg download | https://developer.mozilla.org/docs/Web/API/MediaStream_Recording_API |
 | Runtime | Node 20+ | Local dev server | https://nodejs.org |
 
 **Tradeoff accepted:** Next.js is heavier than this app needs. In exchange, the API key stays server-side and there is one command to run.
 
-**Unverified, check first:** the exact model ID available on your key (Gemini 3 Flash vs 3.1 Flash-Lite vs 2.5 Flash), and your account's actual free-tier limits. Google changes these. Verify in AI Studio before the build depends on it — one API call from a scratch file is enough to confirm.
+**Unverified, check first:** the TTS model's free-tier allowance (audio was returned by the key on 23 Oct 2026, but the daily cap was not measured), and whether Gemini's video timestamps land within a second or two on a real recording. Both are checked in the first recording slice before the UI depends on them.
 
 **Fallback if the free tier is too tight:** OpenRouter's free vision models, behind the same server route. The route's interface doesn't change, so the UI is unaffected.
 
@@ -94,6 +106,26 @@ Where `documentPictureInPicture` is available, that bar opens as a small always-
 
 Each "Capture frame" draws the current video frame to a canvas, encodes a JPEG like an upload, and appends a shot with an empty note. "Stop sharing" stops every track and unmount stops them too. Closing the floating window ends the share. No recording, no audio, no persisted frames.
 PRD ref: `prd.md > Capturing frames from your own screen`.
+
+### `Recorder` — three minutes of footage
+"Record screen" calls `getDisplayMedia` and feeds the stream into `MediaRecorder` (`video/webm;codecs=vp9`, no audio track). A ticking strip shows elapsed time, a stop button, and the 3:00 limit; `MediaRecorder.stop()` is called automatically at the limit. On stop, the blob is written to IndexedDB with its duration, mime type, and capture date, and becomes the active recording. Only one is kept. Recording again replaces it after a confirm.
+PRD ref: `prd.md > Recording your screen`.
+
+### `RecordingStrip` — the clip in the input column
+Replaces the upload area when a recording exists: a poster frame, `1:42 of 3:00`, play/pause, "Replace recording", "Remove". Removing deletes the IndexedDB entry and clears the script that came from it.
+PRD ref: `prd.md > Screens and Layout`.
+
+### `VideoPlayer` — footage beside the script
+A `<video>` element bound to an object URL from the stored blob, muted. A thin timeline under it marks every scene at its `startSeconds`. Clicking a scene card seeks to that moment and highlights the row that contains the playhead. No trimming, no scrubbing controls beyond the native bar.
+PRD ref: `prd.md > Playing the recording`.
+
+### `NarrationPanel` — three voices, stretched to fit
+A voice selector with three named voices (Kore, Puck, Charon), a "Play with narration" toggle, and the export control. For each scene it POSTs the line and voice to `/api/tts` once and caches the resulting `AudioBuffer` keyed by `sceneId + voice + line`. On play, each scene's buffer is scheduled at its `startSeconds`, with `playbackRate` set to `min(1.15, max(0.85, window / audioDuration))`. A line that still runs long at 0.85× is left to finish over the next scene; a shorter line leaves silence. Pausing the video stops all scheduled sources.
+PRD ref: `prd.md > Narration`.
+
+### `ExportControl` — one file out
+`lib/exportVideo.ts` runs a real-time render: a hidden video plays the clip muted, each frame is drawn into a canvas at the recording's aspect ratio (max 1280px wide), the narration buffers are scheduled through a `MediaStreamAudioDestinationNode`, and both streams feed a new `MediaRecorder` → `demo.webm`. Progress reflects `video.currentTime`. The document visibility API pauses the render if the tab is hidden, resuming where it stopped. On finish, a download link appears.
+PRD ref: `prd.md > Exporting the narrated video`.
 
 ### `RubricBox` — optional criteria
 Free-text area, question-style label, placeholder examples, and a link that fills in the course's own criteria from a constant. Parsing happens on the server, not here.
@@ -156,9 +188,32 @@ type Scene = {
   description: string;   // editable; correcting it rewrites this scene
   covers: string[];      // criterion ids
   seconds: number;       // derived, not stored from the model
+  startSeconds?: number; // recording path only: where this scene begins
   flaggedCut: boolean;   // derived, not stored from the model
 };
+
+type Recording = {
+  id: string;
+  blob: Blob;            // WebM, video only, max 3:00
+  durationSeconds: number;
+  mimeType: string;
+  createdAt: number;
+};
+
+type StoredSession = {
+  recording: Recording;
+  scenes: Scene[];
+  criteria: Criterion[];
+  tone: Tone;
+  minutes: number;
+  rubric: string;
+  voice: VoiceId;
+};
+
+type VoiceId = "kore" | "puck" | "charon";
 ```
+
+**Stored only for recordings.** `StoredSession` lives in IndexedDB under one key, so a reload restores the clip and the script together. Screenshot work stays in React state and disappears on reload, as before. Nothing goes to a server.
 
 **Derived, never asked of the model:** `seconds` and `flaggedCut` are computed in `lib/timing.ts` and `lib/cuts.ts`. This keeps two of the product's judgment calls deterministic, free, and explainable.
 
@@ -173,11 +228,18 @@ demoscript/
 │   ├── page.tsx                # the one page; owns all state
 │   ├── globals.css             # Tailwind entry + the few custom tokens
 │   └── api/
-│       ├── analyze/route.ts    # POST: screenshot → description + confidence
+│       ├── analyze/route.ts    # POST: screenshots → descriptions + confidence
+│       ├── video/route.ts      # POST: recording → scenes with timestamps
+│       ├── tts/route.ts        # POST: one line + voice → WAV
 │       └── script/route.ts     # POST: everything → criteria + scenes (or one rewrite)
 ├── components/
 │   ├── UploadColumn.tsx
+│   ├── Recorder.tsx
+│   ├── RecordingStrip.tsx
 │   ├── CaptureBar.tsx
+│   ├── VideoPlayer.tsx
+│   ├── NarrationPanel.tsx
+│   ├── ExportControl.tsx
 │   ├── ThumbnailList.tsx
 │   ├── RubricBox.tsx
 │   ├── ToneLengthControls.tsx
@@ -192,6 +254,10 @@ demoscript/
 │   ├── types.ts                # the types above
 │   ├── timing.ts               # words → seconds
 │   ├── capture.ts              # getDisplayMedia + frame grabbing
+│   ├── recorder.ts             # screen recording, 3:00 auto-stop
+│   ├── sessionStore.ts         # IndexedDB: clip + script survive a reload
+│   ├── narration.ts            # voices, stretch-to-fit scheduling, audio cache
+│   ├── exportVideo.ts          # real-time render to one .webm
 │   ├── floatingBar.ts          # always-on-top capture window
 │   ├── cuts.ts                 # cut-flag rules
 │   ├── rubric.ts               # course criteria constant + time-limit detection
@@ -199,7 +265,8 @@ demoscript/
 ├── public/
 │   └── sample/                 # sample screenshots used by the sample project
 ├── scripts/
-│   └── check-model.mjs         # which models this key can use, and why not
+│   ├── check-model.mjs         # which models this key can use, and why not
+│   └── check-tts.mjs           # which voices can synthesize speech on this key
 ├── .env.local                  # GEMINI_API_KEY (gitignored)
 ├── .env.example                # names only, no secrets
 ├── package.json
@@ -225,12 +292,34 @@ demoscript/
 - One call for the whole script, not one per scene — fewer calls, fewer chances to fail, and the model can balance time across scenes. The brief asks for roughly one scene per 15 seconds and lets the model reuse a screenshot when there are fewer images than scenes, which is the normal case for a one-page project.
 - Rewrite mode: same endpoint, one scene's context plus its target duration, returning a single scene.
 
+**Gemini API — recording analysis**
+
+- Upload with `ai.files.upload({ file, config: { mimeType } })`, then poll `ai.files.get({ name })` until `state === "ACTIVE"` (a 1–2 minute WebM usually activates in a few seconds).
+- One call with the file plus the rubric text, tone, length, and the same scene brief. Response schema: `{ criteria: [...], scenes: [{ shotId: "video", startSeconds, spokenLine, caption, covers }] }`.
+- Timestamps are the model's estimate, not frame-accurate. The route sorts them, clamps them to the clip's duration, and forces the first to 0. If two scenes land on the same second, the later one is nudged forward by one second.
+- The uploaded file is deleted (`ai.files.delete`) in a `finally`, so nothing is left in the project's file storage.
+- The clip is picture-only, so the model works from the visuals; no transcription step exists.
+- Free-tier cost: one request per generation, ~50–60k tokens for three minutes, well inside the per-minute limit.
+
+**Gemini API — narration (TTS)**
+
+- Model: `gemini-3.8-flash-tts`, verified returning `audio/wav` on 23 Oct 2026.
+- Call shape: text plus `speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName`, `responseModalities: ["AUDIO"]`.
+- One request per scene, cached by `sceneId + voice + line`, because a whole-script clip gives no per-scene timing marks. Narration is only requested when the user presses play, so a script that is never heard costs nothing.
+- Three voices: `Kore` (calm), `Puck` (bright), `Charon` (low). Chosen once per script, stored in the session.
+
 **Time limit detection** — `lib/rubric.ts` looks for a duration in the rubric text (`3 minute`, `2:30`, `180 seconds`, `5 min including Q&A`) with a small set of patterns, then clamps to 1–3 minutes for the comparison. If nothing is found, no notice. Deliberately simple; prose like "keep it brief" won't match and shouldn't.
 
 **Documentation:** https://ai.google.dev/gemini-api/docs/image-understanding · https://ai.google.dev/gemini-api/docs/structured-output · https://ai.google.dev/gemini-api/docs/rate-limits
 
 ## Important Failure Modes
 
+- **A recording the browser refuses to make** (no display capture, a blocked permission, Safari without MediaRecorder support) → a plain line: "This browser can't record the screen — use Chrome, or drop screenshots instead." The screenshot path stays available.
+- **A clip that never finishes uploading or activating** (slow link, a stuck file state) → a progress line with a cancel; after 90 seconds the app says it can't read the clip right now and leaves it in the tab to retry.
+- **A recording longer than the model can usefully read** → the recorder stops itself at 3:00, so this cannot reach the model. A file dropped in its place is measured first and refused with the same limit.
+- **Timestamps that drift** → scenes still seek, but a scene may land a second or two off. The player is the source of truth and the user can see the moment; there is no per-scene retiming control in the POC.
+- **TTS quota exhausted mid-narration** → the scenes already rendered keep playing, a plain line says the rest of the voice is unavailable, and the export control is disabled until a voice renders for every scene.
+- **Export while the tab is hidden** → the render pauses at the current second and says "Bring this tab back to finish the export." It resumes on return; it never produces a silently truncated file.
 - **Free-tier rate limit or quota hit** → "Gemini's free quota is used up for now — try again in a minute, or after midnight Pacific if it keeps happening." The user's screenshots and notes stay, and a retry is one click. The script call first tries the better model and falls back to flash-lite, so a used-up daily cap on one model does not block the generation.
 - **A screenshot the model can't read** (blurry, a photo of a phone, a mostly-empty page) → `confident: false` produces "I couldn't read this one — what does it show?" with the note field focused. No invented content.
 - **Generation takes long enough to feel broken** (10–20s with several screenshots) → the right column shows progress in place ("reading screenshot 2 of 4", then "writing scenes"), never a full-screen spinner that hides the layout.

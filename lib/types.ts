@@ -48,6 +48,16 @@ export type Scene = {
   description: string;
   covers: string[];
   seconds: number;
+  /** Recording path only: the second in the clip where this scene begins. */
+  startSeconds?: number;
+};
+
+export type Recording = {
+  blob: Blob;
+  mimeType: string;
+  durationSeconds: number;
+  posterDataUrl: string;
+  createdAt: number;
 };
 
 export type SampleProject = {

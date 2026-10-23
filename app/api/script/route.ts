@@ -5,12 +5,12 @@ import {
   generateJson,
   scriptSchema,
 } from "@/lib/gemini";
+import { normalizeCriteria } from "@/lib/criteria";
 import { scriptInstruction, scriptSystem, type ScriptShot } from "@/lib/prompts";
-import type { Criterion, ScriptResult, ScriptScene, Tone } from "@/lib/types";
+import type { ScriptResult, ScriptScene, Tone } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-type RawCriterion = { id: string; label: string; source: string };
 type RawScene = {
   shotId: string;
   actionId: string;
@@ -18,48 +18,13 @@ type RawScene = {
   caption: string;
   covers: string[];
 };
-type RawResult = { criteria: RawCriterion[]; scenes: RawScene[] };
+type RawResult = { criteria: { id: string; label: string; source: string }[]; scenes: RawScene[] };
 
 const TONES: Tone[] = ["professional", "energetic", "storytelling"];
 const MAX_SHOTS = 18;
 
-function shortLabel(text: string): string {
-  const words = text.trim().split(/\s+/).filter(Boolean).slice(0, 8);
-  return words.join(" ");
-}
-
-/**
- * The model names its own criterion ids, and those names are only meaningful
- * inside its own answer. Renumber them here so the panel and the scenes can
- * never disagree, and drop any scene that points at a screenshot we don't have.
- */
 function sanitize(raw: RawResult, shotIds: Set<string>): ScriptResult {
-  const criteria: Criterion[] = [];
-  const idMap = new Map<string, string>();
-  const byLabel = new Map<string, string>();
-
-  for (const item of raw.criteria ?? []) {
-    const source = typeof item.source === "string" ? item.source.trim() : "";
-    const label =
-      (typeof item.label === "string" && item.label.trim()) || shortLabel(source);
-    if (!label) continue;
-
-    const key = label.toLowerCase();
-    const existing = byLabel.get(key);
-    if (existing) {
-      if (item.id) idMap.set(item.id, existing);
-      continue;
-    }
-
-    const id = `c${criteria.length + 1}`;
-    criteria.push({ id, label, source: source || label });
-    byLabel.set(key, id);
-    if (item.id) idMap.set(item.id, id);
-  }
-
-  const labelToId = new Map(
-    criteria.map((criterion) => [criterion.label.toLowerCase(), criterion.id]),
-  );
+  const { criteria, idFor } = normalizeCriteria(raw.criteria);
 
   const scenes: ScriptScene[] = [];
   for (const scene of raw.scenes ?? []) {
@@ -69,7 +34,7 @@ function sanitize(raw: RawResult, shotIds: Set<string>): ScriptResult {
 
     const covers = Array.isArray(scene.covers)
       ? scene.covers
-          .map((ref) => idMap.get(ref) ?? labelToId.get(String(ref).toLowerCase()))
+          .map((ref) => idFor(String(ref)))
           .filter((id): id is string => Boolean(id))
       : [];
 

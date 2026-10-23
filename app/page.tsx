@@ -1,17 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SkeletonStoryboard from "@/components/SkeletonStoryboard";
 import Storyboard from "@/components/Storyboard";
 import UploadColumn from "@/components/UploadColumn";
+import VideoPlayer from "@/components/VideoPlayer";
 import { frameFromVideo, startScreenShare } from "@/lib/capture";
 import { canFloatCapture, openFloatingBar, type FloatingBar } from "@/lib/floatingBar";
 import { fileToDataUrl, isImage } from "@/lib/images";
+import { beginRecording, MAX_RECORDING_SECONDS, type RecordingSession } from "@/lib/recorder";
 import { sampleProject, sampleRedNotes } from "@/lib/sampleProject";
+import { clearSession, loadSession, saveSession } from "@/lib/sessionStore";
 import { secondsFor } from "@/lib/timing";
 import type {
   Analysis,
   Criterion,
+  Recording,
   Scene,
   ScriptResult,
   Shot,
@@ -51,8 +55,16 @@ export default function Page() {
   const [status, setStatus] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [floating, setFloating] = useState(false);
+  const [recording, setRecording] = useState<Recording | null>(null);
+  const [recordingActive, setRecordingActive] = useState(false);
+  const [recordingStarting, setRecordingStarting] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const captureVideoRef = useRef<HTMLVideoElement | null>(null);
+  const playerRef = useRef<HTMLVideoElement | null>(null);
+  const recordingSessionRef = useRef<RecordingSession | null>(null);
+  const storedReadyRef = useRef(false);
   const floatingRef = useRef<FloatingBar | null>(null);
   const captureRef = useRef<() => void>(() => undefined);
   const stopRef = useRef<() => void>(() => undefined);
@@ -62,7 +74,7 @@ export default function Page() {
   const stopShare = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
+    if (captureVideoRef.current) captureVideoRef.current.srcObject = null;
     floatingRef.current?.close();
     floatingRef.current = null;
     setFloating(false);
@@ -71,15 +83,72 @@ export default function Page() {
 
   useEffect(() => stopShare, [stopShare]);
 
+  useEffect(
+    () => () => {
+      recordingSessionRef.current?.stop();
+    },
+    [],
+  );
+
+  const recordingUrl = useMemo(
+    () => (recording ? URL.createObjectURL(recording.blob) : null),
+    [recording],
+  );
+
+  useEffect(
+    () => () => {
+      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
+    },
+    [recordingUrl],
+  );
+
+  // A clip and its script outlive a reload. Nothing else does.
+  useEffect(() => {
+    let alive = true;
+    void loadSession()
+      .then((stored) => {
+        if (!alive || !stored) return;
+        setRecording(stored.recording);
+        setRubric(stored.rubric ?? "");
+        setTone(stored.tone ?? "professional");
+        setMinutes(stored.minutes ?? 2);
+        if (stored.scenes.length > 0) {
+          setScript({ scenes: stored.scenes, criteria: stored.criteria ?? [] });
+        }
+      })
+      .finally(() => {
+        storedReadyRef.current = true;
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!storedReadyRef.current || !recording) return;
+    // Rewriting a multi-megabyte clip on every keystroke would be wasteful.
+    const timer = window.setTimeout(() => {
+      void saveSession({
+        recording,
+        scenes: script?.scenes ?? [],
+        criteria: script?.criteria ?? [],
+        rubric,
+        tone,
+        minutes,
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [recording, script, rubric, tone, minutes]);
+
   const startShare = useCallback(async () => {
     setNotice(null);
     try {
       const stream = await startScreenShare();
       streamRef.current = stream;
       setSharing(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        void videoRef.current.play().catch(() => undefined);
+      if (captureVideoRef.current) {
+        captureVideoRef.current.srcObject = stream;
+        void captureVideoRef.current.play().catch(() => undefined);
       }
       stream.getVideoTracks()[0]?.addEventListener("ended", () => stopShare());
 
@@ -105,7 +174,7 @@ export default function Page() {
   }, [stopShare, shots.length]);
 
   const captureFrame = useCallback(() => {
-    const video = videoRef.current;
+    const video = captureVideoRef.current;
     if (!video) return;
     if (shots.length >= MAX_SHOTS) {
       setNotice("6 at a time — that's already a full 3-minute script.");
@@ -134,6 +203,63 @@ export default function Page() {
 
   captureRef.current = captureFrame;
   stopRef.current = stopShare;
+
+  const startRecording = useCallback(async () => {
+    if (recordingActive || recordingStarting) return;
+    setNotice(null);
+    setElapsed(0);
+    setRecordingStarting(true);
+
+    try {
+      const session = await beginRecording({
+        onTick: (seconds) => setElapsed(seconds),
+        onFinish: (result) => {
+          recordingSessionRef.current = null;
+          setRecording(result);
+          setScript(null);
+          setActiveSceneId(null);
+          setRecordingActive(false);
+          setRecordingStarting(false);
+          setElapsed(0);
+        },
+      });
+      recordingSessionRef.current = session;
+      setRecordingActive(true);
+      setRecordingStarting(false);
+    } catch (error) {
+      setRecordingStarting(false);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Screen recording didn't start. Drop screenshots instead.",
+      );
+    }
+  }, [recordingActive, recordingStarting]);
+
+  const stopRecording = useCallback(() => {
+    recordingSessionRef.current?.stop();
+  }, []);
+
+  const removeRecording = useCallback(() => {
+    recordingSessionRef.current?.stop();
+    recordingSessionRef.current = null;
+    setRecording(null);
+    setRecordingActive(false);
+    setRecordingStarting(false);
+    setElapsed(0);
+    setScript(null);
+    setActiveSceneId(null);
+    void clearSession();
+  }, []);
+
+  const seekScene = useCallback((scene: Scene) => {
+    const player = playerRef.current;
+    if (player) {
+      player.currentTime = scene.startSeconds ?? 0;
+      void player.play().catch(() => undefined);
+    }
+    setActiveSceneId(scene.id);
+  }, []);
 
   useEffect(() => {
     floatingRef.current?.setRemaining(MAX_SHOTS - shots.length);
@@ -183,15 +309,65 @@ export default function Page() {
   }, []);
 
   const generate = useCallback(async () => {
-    if (running || shots.length === 0) return;
+    if (running || (shots.length === 0 && !recording)) return;
 
     setNotice(null);
     setRunning(true);
     setStatus(
-      `Reading ${shots.length} screenshot${shots.length === 1 ? "" : "s"}…`,
+      recording
+        ? "Sending the recording…"
+        : `Reading ${shots.length} screenshot${shots.length === 1 ? "" : "s"}…`,
     );
 
     try {
+      if (recording) {
+        const form = new FormData();
+        form.append("video", recording.blob, "recording.webm");
+        form.append("rubric", rubric);
+        form.append("tone", tone);
+        form.append("minutes", String(minutes));
+        form.append("duration", String(recording.durationSeconds));
+
+        const videoResponse = await fetch("/api/video", { method: "POST", body: form });
+        const videoBody = await videoResponse.json().catch(() => ({}));
+        if (!videoResponse.ok) {
+          throw new Error(
+            videoBody.error ?? "The recording couldn't be read. Try again.",
+          );
+        }
+
+        const result = videoBody as {
+          criteria: Criterion[];
+          scenes: {
+            startSeconds: number;
+            spokenLine: string;
+            caption: string;
+            covers: string[];
+          }[];
+        };
+
+        const scenes: Scene[] = result.scenes.map((scene, index) => {
+          const next = result.scenes[index + 1];
+          const start = scene.startSeconds;
+          const end = next ? next.startSeconds : recording.durationSeconds;
+          return {
+            id: newId(),
+            shotId: "recording",
+            actionId: "",
+            spokenLine: scene.spokenLine,
+            caption: scene.caption,
+            description: "",
+            covers: scene.covers,
+            seconds: Math.max(1, Math.round(end - start)),
+            startSeconds: start,
+          };
+        });
+
+        setScript({ scenes, criteria: result.criteria });
+        setActiveSceneId(scenes[0]?.id ?? null);
+        return;
+      }
+
       const analyzeResponse = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -296,18 +472,30 @@ export default function Page() {
       setRunning(false);
       setStatus(null);
     }
-  }, [minutes, rubric, running, shots, tone]);
+  }, [minutes, recording, rubric, running, shots, tone]);
+
+  const storyboardShots: Shot[] = recording
+    ? [
+        {
+          id: "recording",
+          fileName: "recording.webm",
+          dataUrl: recording.posterDataUrl,
+          note: "Screen recording",
+          actions: [],
+        },
+      ]
+    : shots;
 
   return (
     <div className="min-h-screen">
-      <video ref={videoRef} muted playsInline className="hidden" aria-hidden />
+      <video ref={captureVideoRef} muted playsInline className="hidden" aria-hidden />
       <header className="mx-auto flex max-w-page items-baseline justify-between px-6 pb-10 pt-10 sm:px-8">
         <div>
           <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
             DemoScript
           </p>
           <p className="mt-1 text-[12.5px] text-muted">
-            Turn your screenshots into a demo script.
+            Turn your screenshots or a screen recording into a demo script.
           </p>
         </div>
         {isSample ? <p className="text-[11.5px] text-faint">Sample project</p> : null}
@@ -383,6 +571,29 @@ export default function Page() {
               })
             }
             onClearSample={() => setView("empty")}
+            recorded={
+              isSample
+                ? null
+                : recording
+                  ? {
+                      posterDataUrl: recording.posterDataUrl,
+                      durationSeconds: recording.durationSeconds,
+                    }
+                  : null
+            }
+            recordingStarting={recordingStarting}
+            recording={recordingActive}
+            elapsedSeconds={elapsed}
+            limitSeconds={MAX_RECORDING_SECONDS}
+            onStartRecording={() => {
+              if (isSample) {
+                setView("empty");
+                return;
+              }
+              void startRecording();
+            }}
+            onStopRecording={stopRecording}
+            onRemoveRecording={removeRecording}
           />
         </section>
 
@@ -395,19 +606,35 @@ export default function Page() {
               lengthSeconds={sampleProject.lengthSeconds}
               redNotes={sampleRedNotes}
             />
-          ) : script ? (
-            <Storyboard
-              scenes={script.scenes}
-              shots={shots}
-              criteria={script.criteria}
-              lengthSeconds={minutes * 60}
-            />
           ) : (
-            <SkeletonStoryboard
-              onTrySample={() => setView("sample")}
-              minutes={minutes}
-              busyLine={running ? status : null}
-            />
+            <>
+              {recording && recordingUrl && script ? (
+                <VideoPlayer
+                  src={recordingUrl}
+                  scenes={script.scenes}
+                  durationSeconds={recording.durationSeconds}
+                  activeSceneId={activeSceneId}
+                  onActiveScene={setActiveSceneId}
+                  videoRef={playerRef}
+                />
+              ) : null}
+              {script ? (
+                <Storyboard
+                  scenes={script.scenes}
+                  shots={storyboardShots}
+                  criteria={script.criteria}
+                  lengthSeconds={minutes * 60}
+                  activeSceneId={activeSceneId}
+                  onSeekScene={recording ? seekScene : undefined}
+                />
+              ) : (
+                <SkeletonStoryboard
+                  onTrySample={() => setView("sample")}
+                  minutes={minutes}
+                  busyLine={running ? status : null}
+                />
+              )}
+            </>
           )}
         </section>
       </main>

@@ -13,6 +13,8 @@ type Props = {
   criteria: Criterion[];
   lengthSeconds: number;
   redNotes?: Record<string, string>;
+  activeSceneId?: string | null;
+  onSeekScene?: (scene: Scene) => void;
 };
 
 export default function Storyboard({
@@ -21,6 +23,8 @@ export default function Storyboard({
   criteria,
   lengthSeconds,
   redNotes,
+  activeSceneId = null,
+  onSeekScene,
 }: Props) {
   const [copied, setCopied] = useState(false);
   const used = scenes.reduce((sum, scene) => sum + scene.seconds, 0);
@@ -72,6 +76,8 @@ export default function Storyboard({
             covers={scene.covers
               .map((id) => labelById.get(id))
               .filter((label): label is string => Boolean(label))}
+            active={scene.id === activeSceneId}
+            onSeek={onSeekScene ? () => onSeekScene(scene) : undefined}
           />
         ))}
       </div>

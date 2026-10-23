@@ -42,6 +42,59 @@ export function scriptSystem(tone: Tone): string {
   ].join(" ");
 }
 
+export function videoSystem(tone: Tone): string {
+  return [
+    "You watch a screen recording of a student's own project and write the narration for a short demo video.",
+    "Each scene is a stretch of that recording, and its spoken line is what the viewer hears over it.",
+    "Describe only what is visible. Never invent a feature, label, number, or result that is not on screen.",
+    "Write the way a person talks, not the way a landing page reads.",
+    `Tone: ${TONE_NOTES[tone]}`,
+  ].join(" ");
+}
+
+export function videoInstruction({
+  durationSeconds,
+  rubric,
+  tone,
+  seconds,
+}: {
+  durationSeconds: number;
+  rubric: string;
+  tone: Tone;
+  seconds: number;
+}): string {
+  const targetWords = Math.round(seconds * 2.5);
+  const sceneTarget = Math.min(
+    14,
+    Math.max(3, Math.round(Math.max(durationSeconds, 20) / 12)),
+  );
+
+  const rubricBlock = rubric.trim()
+    ? [
+        "The student's judging criteria, copied exactly as they gave them:",
+        rubric.trim(),
+        "",
+        "Split them into 2–6 criteria. Use the student's own wording in source; keep label short (under 8 words).",
+        "Only mark a scene as covering a criterion when that moment genuinely shows evidence for it. An empty covers list is fine and normal.",
+      ].join("\n")
+    : "The student gave no judging criteria. Return an empty criteria list, and an empty covers list on every scene.";
+
+  return [
+    `You are watching a ${Math.round(durationSeconds)}-second screen recording of a student's project, made for a ${Math.round(seconds / 60)}-minute demo video in ${tone} tone.`,
+    `The narration should total about ${targetWords} spoken words — roughly ${Math.round(targetWords * 0.85)} to ${Math.round(targetWords * 1.15)} across all scenes.`,
+    "",
+    "Rules:",
+    `- Break the recording into about ${sceneTarget} scenes, one per moment where something changes on screen. Do not spend two scenes on an unchanged screen.`,
+    "- startSeconds: the second in the recording where the scene begins. The first scene starts at 0, every later one is larger than the one before it, and none exceeds the clip's length.",
+    "- The first scene should land the problem or the promise in one sentence. The last should close on what the user can now do.",
+    "- Spoken line: 25–40 words (roughly 10–16 seconds at reading speed), first person, present tense. Say what the viewer is looking at and why it matters. No 'as you can see', no 'welcome to my demo', no feature list.",
+    "- Caption: at most 8 words, sentence case, describing the visual, not repeating the spoken line.",
+    "- Never pad with filler. If a stretch of the recording shows nothing worth narrating, skip it and leave silence.",
+    "",
+    rubricBlock,
+  ].join("\n");
+}
+
 export function scriptInstruction({
   shots,
   rubric,
