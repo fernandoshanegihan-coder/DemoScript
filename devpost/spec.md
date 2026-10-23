@@ -30,7 +30,7 @@ Nothing else is saved. Screenshot work is gone on reload; a recording survives i
 1. **Open the page** → `app/page.tsx` renders both columns. No data is fetched. The right column is `SkeletonStoryboard.tsx` — ghosted cards and clock, no criteria circles.
 2. **Click "Try it with a sample project"** → `lib/sampleProject.ts` returns a finished storyboard from memory. **No model call.** This is what makes the example instant.
 3. **Drop screenshots** → the browser turns each into a thumbnail and a data URL (the image encoded as text). They sit in page state; nothing is uploaded anywhere yet.
-4. **Or record** → `getDisplayMedia` plus `MediaRecorder` produce a `.webm` blob (max 3:00, auto-stop). The blob is written to IndexedDB on stop, so a reload restores it without a model call.
+4. **Or record** → `getDisplayMedia` plus `MediaRecorder` produce a `.webm` blob (max 3:00 of footage, pause/resume with the gap cut, auto-stop). The blob is written to IndexedDB on stop, so a reload restores it without a model call.
 5. **Add notes, reorder, "+ add another action"** → page state only. Order is the scene order.
 6. **Paste a rubric** → page state. Criteria circles still don't appear; they appear after generation parses the text.
 7. **Press "Make my script"** → with screenshots, the browser POSTs to `/api/analyze`; with a recording, it POSTs the blob to `/api/video`.
@@ -107,11 +107,15 @@ Each "Capture frame" draws the current video frame to a canvas, encodes a JPEG l
 PRD ref: `prd.md > Capturing frames from your own screen`.
 
 ### `Recorder` — three minutes of footage
-"Record screen" calls `getDisplayMedia` and feeds the stream into `MediaRecorder` (`video/webm;codecs=vp9`, no audio track). A ticking strip shows elapsed time, a stop button, and the 3:00 limit; `MediaRecorder.stop()` is called automatically at the limit. On stop, the blob is written to IndexedDB with its duration, mime type, and capture date, and becomes the active recording. Only one is kept. Recording again replaces it after a confirm.
+"Record screen" calls `getDisplayMedia` and feeds the stream into `MediaRecorder` (`video/webm;codecs=vp9`, no audio track). A ticking strip shows elapsed time, pause/resume, and stop. The 3:00 limit counts recorded footage: `pause()` stops writing frames and `resume()` continues the same file, so the paused stretch is cut and paused time doesn't spend the budget. `MediaRecorder.stop()` is called automatically at the limit. On stop, the blob is written to IndexedDB with its duration, mime type, and capture date, and becomes the active recording. Only one is kept. Recording again replaces it after a confirm.
+PRD ref: `prd.md > Recording your screen`.
+
+### `RecordingBar` — controls over the project
+Where `documentPictureInPicture` is available, the take opens a small always-on-top window with the elapsed time, Pause/Resume, and Stop. It is plain DOM and inline styles, like the capture bar. The point is that pausing never requires switching back to DemoScript — that switch would be recorded. Closing the window leaves the recording running; the in-page strip still has the controls. Browsers without Document Picture-in-Picture use the strip alone.
 PRD ref: `prd.md > Recording your screen`.
 
 ### `RecordingStrip` — the clip in the input column
-Replaces the upload area when a recording exists: a poster frame, `1:42 of 3:00`, play/pause, "Replace recording", "Remove". Removing deletes the IndexedDB entry and clears the script that came from it.
+While recording: the elapsed time, Pause/Resume, Stop, and the 3:00 limit, with a paused line that says the stretch is cut. When a recording exists: a poster frame, `1:42 of 3:00`, "Record again", "Remove". Removing deletes the IndexedDB entry and clears the script that came from it.
 PRD ref: `prd.md > Screens and Layout`.
 
 ### `VideoPlayer` — footage beside the script
@@ -127,7 +131,7 @@ Takes over the script column while rehearsal runs: the remaining time, the curre
 PRD ref: `prd.md > Rehearsing it`.
 
 ### `RecordPanel` — silent screen take
-Owns the existing recorder strip inside `UploadColumn`: start, elapsed time, stop, the 3:00 auto-stop, the take preview, remove, and replace.
+Owns the existing recorder strip inside `UploadColumn`: start, elapsed time, pause/resume, stop, the 3:00 auto-stop of recorded footage, the take preview, remove, and replace.
 PRD ref: `prd.md > Recording your screen`.
 
 ### `OverdubPanel` — one voice pass
@@ -205,7 +209,7 @@ type ScenePatch = Partial<
 type Recording = {
   blob: Blob;            // WebM, video only, max 3:00
   mimeType: string;
-  durationSeconds: number;
+  durationSeconds: number; // recorded footage; paused time excluded
   posterDataUrl: string; // first frame, for the player and the thumbnail
   createdAt: number;
 };
@@ -268,10 +272,10 @@ demoscript/
 │   ├── types.ts                # the types above
 │   ├── timing.ts               # words → seconds
 │   ├── capture.ts              # getDisplayMedia + frame grabbing
-│   ├── recorder.ts             # screen recording, 3:00 auto-stop
+│   ├── recorder.ts             # screen recording, pause/resume, 3:00 of footage
 │   ├── sessionStore.ts         # IndexedDB: clip + script survive a reload
 │   ├── overdub.ts              # canvas + mic → one WebM
-│   ├── floatingBar.ts          # always-on-top capture window
+│   ├── floatingBar.ts          # always-on-top capture and recording controls
 │   ├── cuts.ts                 # cut-flag rules
 │   ├── rubric.ts               # time-limit detection
 │   └── sampleProject.ts        # cached example (no model call)
@@ -328,6 +332,7 @@ demoscript/
 ## Important Failure Modes
 
 - **A recording the browser refuses to make** (no display capture, a blocked permission, Safari without MediaRecorder support) → a plain line: "This browser can't record the screen — use Chrome, or drop screenshots instead." The screenshot path stays available.
+- **The always-on-top recording controls can't open** (no Document Picture-in-Picture, or the browser denies the window) → the in-page strip still has pause, resume, and stop; the take is unaffected. Closing the floating window on purpose does not stop the recording.
 - **A clip that never finishes uploading or activating** (slow link, a stuck file state) → a progress line with a cancel; after 90 seconds the app says it can't read the clip right now and leaves it in the tab to retry.
 - **A recording longer than the model can usefully read** → the recorder stops itself at 3:00, so this cannot reach the model. A file dropped in its place is measured first and refused with the same limit.
 - **Timestamps that drift** → scenes still seek, but a scene may land a second or two off. The player is the source of truth and the user can see the moment; there is no per-scene retiming control in the POC.

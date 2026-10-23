@@ -7,8 +7,11 @@ type Props = {
   durationSeconds: number;
   limitSeconds: number;
   recording: boolean;
+  paused: boolean;
   starting: boolean;
   elapsedSeconds: number;
+  onPause: () => void;
+  onResume: () => void;
   onStop: () => void;
   onRemove: () => void;
   onRecordAgain: () => void;
@@ -19,8 +22,11 @@ export default function RecordingStrip({
   durationSeconds,
   limitSeconds,
   recording,
+  paused,
   starting,
   elapsedSeconds,
+  onPause,
+  onResume,
   onStop,
   onRemove,
   onRecordAgain,
@@ -30,7 +36,8 @@ export default function RecordingStrip({
       <div className="py-2">
         <p className="text-[13.5px] text-ink">Waiting for you to pick a screen…</p>
         <p className="mt-1.5 text-[12px] text-muted">
-          Choose the window or tab with your project. Recording starts once you do.
+          Choose the window with your project. Recording starts once you do — a
+          floating bar stays on top so you can pause without switching back.
         </p>
       </div>
     );
@@ -40,22 +47,38 @@ export default function RecordingStrip({
     return (
       <div className="py-1">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-flag" aria-hidden />
+          <span
+            className={`h-2 w-2 rounded-full ${
+              paused ? "bg-faint" : "animate-pulse bg-flag"
+            }`}
+            aria-hidden
+          />
           <p className="text-[13.5px] tabular-nums text-ink">
-            Recording {formatClock(elapsedSeconds)} of {formatClock(limitSeconds)}
+            {paused ? "Paused at " : "Recording "}
+            {formatClock(elapsedSeconds)} of {formatClock(limitSeconds)}
           </p>
         </div>
         <p className="mt-1.5 text-[12px] text-muted">
-          Picture only. Click through your project, then stop — it ends on its own at
-          three minutes.
+          {paused
+            ? "Your clip won't include this stretch. Resume when you're ready."
+            : "Picture only. Pause anytime — the gap is cut. It ends on its own at three minutes of footage."}
         </p>
-        <button
-          type="button"
-          onClick={onStop}
-          className="mt-3 border border-ink px-3 py-1.5 text-[12.5px] text-ink hover:border-accent"
-        >
-          Stop recording
-        </button>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button
+            type="button"
+            onClick={paused ? onResume : onPause}
+            className="bg-accent px-3 py-1.5 text-[12.5px] text-paper transition-opacity hover:opacity-90"
+          >
+            {paused ? "Resume recording" : "Pause recording"}
+          </button>
+          <button
+            type="button"
+            onClick={onStop}
+            className="border border-ink px-3 py-1.5 text-[12.5px] text-ink hover:border-accent"
+          >
+            Stop recording
+          </button>
+        </div>
       </div>
     );
   }

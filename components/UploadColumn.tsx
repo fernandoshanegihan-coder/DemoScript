@@ -39,9 +39,12 @@ type Props = {
   recorded: { posterDataUrl: string; durationSeconds: number } | null;
   recordingStarting: boolean;
   recording: boolean;
+  recordingPaused: boolean;
   elapsedSeconds: number;
   limitSeconds: number;
   onStartRecording: () => void;
+  onPauseRecording: () => void;
+  onResumeRecording: () => void;
   onStopRecording: () => void;
   onRemoveRecording: () => void;
 };
@@ -74,9 +77,12 @@ export default function UploadColumn({
   recorded,
   recordingStarting,
   recording,
+  recordingPaused,
   elapsedSeconds,
   limitSeconds,
   onStartRecording,
+  onPauseRecording,
+  onResumeRecording,
   onStopRecording,
   onRemoveRecording,
 }: Props) {
@@ -115,8 +121,11 @@ export default function UploadColumn({
             durationSeconds={recorded?.durationSeconds ?? 0}
             limitSeconds={limitSeconds}
             recording={recording}
+            paused={recordingPaused}
             starting={recordingStarting}
             elapsedSeconds={elapsedSeconds}
+            onPause={onPauseRecording}
+            onResume={onResumeRecording}
             onStop={onStopRecording}
             onRemove={onRemoveRecording}
             onRecordAgain={onStartRecording}
@@ -240,7 +249,8 @@ export default function UploadColumn({
                   Record screen
                 </button>
                 <p className="mt-2.5 text-[11.5px] text-faint">
-                  Or record up to three minutes of clicking through it.
+                  Or record up to three minutes of clicking through it. Pause
+                  whenever you need to — the gap is cut from the clip.
                 </p>
               </div>
               <svg

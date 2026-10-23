@@ -10,13 +10,30 @@ export type RecordingResult = {
 
 export type RecordingSession = {
   stop: () => void;
+  pause: () => void;
+  resume: () => void;
   elapsed: () => number;
+  paused: () => boolean;
 };
 
 type StartOptions = {
-  onTick: (elapsedSeconds: number) => void;
+  onTick: (elapsedSeconds: number, paused: boolean) => void;
   onFinish: (result: RecordingResult) => void;
 };
+
+/**
+ * Time the file will actually contain. Paused stretches are simply not counted,
+ * so a nervous setup break never eats the three-minute budget.
+ */
+export function recordedSeconds(
+  recordedMs: number,
+  segmentStartedAt: number | null,
+  now: number = Date.now(),
+): number {
+  const live =
+    segmentStartedAt === null ? 0 : Math.max(0, now - segmentStartedAt);
+  return Math.min(MAX_RECORDING_SECONDS, (recordedMs + live) / 1000);
+}
 
 export function canRecordScreen(): boolean {
   return (
@@ -94,10 +111,11 @@ async function posterFor(blob: Blob, durationSeconds: number): Promise<string> {
 
 /**
  * Starts a picture-only screen recording. There is no microphone track on
- * purpose: the app supplies the narration, so one voice is audible at a time.
+ * purpose: the user's own voice is added afterwards, over the clip, so one
+ * voice is audible at a time. Pausing cuts the paused stretch from the file.
  *
- * `onFinish` fires exactly once — on Stop, at the three-minute limit, or when
- * the user ends sharing from the browser's own bar.
+ * `onFinish` fires exactly once — on Stop, at the three-minute limit of
+ * recorded footage, or when the user ends sharing from the browser's own bar.
  */
 export async function beginRecording({
   onTick,
@@ -130,21 +148,45 @@ export async function beginRecording({
   );
 
   const chunks: Blob[] = [];
-  const startedAt = Date.now();
   let finished = false;
+  let paused = false;
+  let recordedMs = 0;
+  let segmentStartedAt: number | null = Date.now();
 
-  const elapsed = () =>
-    Math.min(MAX_RECORDING_SECONDS, (Date.now() - startedAt) / 1000);
+  const elapsed = () => recordedSeconds(recordedMs, segmentStartedAt);
 
   const ticker = window.setInterval(() => {
     const seconds = elapsed();
-    onTick(seconds);
-    if (seconds >= MAX_RECORDING_SECONDS) finish();
+    onTick(seconds, paused);
+    if (!paused && seconds >= MAX_RECORDING_SECONDS) void finish();
   }, 250);
 
   function cleanup() {
     window.clearInterval(ticker);
     stream.getTracks().forEach((track) => track.stop());
+  }
+
+  /**
+   * The file keeps continuous time: everything between pause and resume is
+   * dropped, so the clip never shows a frozen frame or a dead stretch.
+   */
+  function pause() {
+    if (finished || paused) return;
+    if (segmentStartedAt !== null) {
+      recordedMs += Math.max(0, Date.now() - segmentStartedAt);
+      segmentStartedAt = null;
+    }
+    paused = true;
+    if (recorder.state === "recording") recorder.pause();
+    onTick(elapsed(), true);
+  }
+
+  function resume() {
+    if (finished || !paused) return;
+    if (recorder.state === "paused") recorder.resume();
+    segmentStartedAt = Date.now();
+    paused = false;
+    onTick(elapsed(), false);
   }
 
   async function finish() {
@@ -157,6 +199,9 @@ export async function beginRecording({
       recorder.onstop = () => resolve();
     });
 
+    // Stop is legal from paused, but resuming first is the safe path across
+    // browsers; the frozen duration was already taken above.
+    if (recorder.state === "paused") recorder.resume();
     if (recorder.state !== "inactive") recorder.stop();
     else resolveNow();
 
@@ -187,10 +232,13 @@ export async function beginRecording({
   stream.getVideoTracks()[0]?.addEventListener("ended", () => void finish());
 
   recorder.start(1000);
-  onTick(0);
+  onTick(0, false);
 
   return {
     stop: () => void finish(),
+    pause,
+    resume,
     elapsed,
+    paused: () => paused,
   };
 }

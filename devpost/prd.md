@@ -37,7 +37,7 @@ One surface. No routing, no modals, no settings page.
 **Left column, top to bottom:**
 
 - **Upload area** — near-full column width, dashed border. "Drop screenshots here, in the order you'd show them." Below, smaller: "One screenshot is fine too. Add a note for each thing you'd do on it." Three buttons underneath: "Choose screenshots" (file picker), "Capture screenshots" (share your own screen and grab frames), and "Record screen" (up to three minutes of footage). A faint illustration of three stacked rectangles. In one corner, quiet small text: "Don't include passwords or personal data."
-- **Recording strip** — once a recording exists, the buttons give way to a compact strip: a poster frame, the length (`1:42 of 3:00`), a play/pause control, "Replace recording", and "Remove". It sits where the thumbnails would, because a recording replaces them as the source of scenes.
+- **Recording strip** — once a recording exists, the buttons give way to a compact strip: a poster frame, the length (`1:42 of 3:00`), "Record again", and "Remove". It sits where the thumbnails would, because a recording replaces them as the source of scenes.
 - **Thumbnail row** — once screenshots land, the dashed area becomes numbered, draggable thumbnails. Each has a note field ("what do you do here?") and a "+ add another action" link that creates an additional action on the same screenshot.
 - **Rubric box** — labelled as a question, not a form field: "What will your video be judged on?" Tall text area with grey placeholder examples ("Design, Innovation, Presentation" / "Technical depth 40%, Documentation 20%, Demo 20%"). Under it, a small link: "Use the Build With AI: Basics criteria," which fills it in.
 - **Controls row** — tone segmented control (Professional / Energetic / Storytelling) and a length slider or stepper, 1–3 minutes, default 2.
@@ -95,13 +95,16 @@ For projects that only have one page, a single screenshot can't show "before the
 
 ### Recording your screen
 
-- One button starts a screen recording. It stops when you press **Stop recording**, or on its own at 3:00.
+- One button starts a screen recording. It stops when you press **Stop recording**, or on its own at 3:00 of recorded footage.
+- **Pause** freezes the take and **Resume** continues it. The paused stretch is cut from the clip, and paused time doesn't count against the three minutes.
+- A small always-on-top bar carries Pause, Resume, and Stop over the project window, so switching back to DemoScript to pause never ends up in the file. Where the browser doesn't support that (Chrome is the reliable one today), the strip in the page has the same controls.
 - The clip stays in this browser tab, so a reload doesn't lose it. Nothing is uploaded anywhere except the one model call.
 - Picture only — the first pass has no microphone. Your voice is added afterwards, over the clip, so a fumbled sentence never costs a retake of the screen.
-- While recording, the button area shows the elapsed time and a stop control. The rest of the page stays usable; generation waits for the recording to end.
+- While recording, the button area shows the elapsed time, pause/resume, and stop. The rest of the page stays usable; generation waits for the recording to end.
 - One recording at a time. Recording again replaces the previous clip after a confirm.
 
-- [ ] Recording stops on its own at 3:00 and the clip is saved to the tab.
+- [ ] Recording stops on its own at 3:00 of footage and the clip is saved to the tab.
+- [ ] Pausing and resuming leaves one continuous clip with the paused stretch cut out.
 - [ ] A reload returns the clip and its script without calling the model again.
 
 ### Playing the recording

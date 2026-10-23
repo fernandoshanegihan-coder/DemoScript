@@ -8,7 +8,13 @@ import VideoPlayer from "@/components/VideoPlayer";
 import ModeStrip, { type Mode } from "@/components/ModeStrip";
 import RehearsalPanel from "@/components/RehearsalPanel";
 import { frameFromVideo, startScreenShare } from "@/lib/capture";
-import { canFloatCapture, openFloatingBar, type FloatingBar } from "@/lib/floatingBar";
+import {
+  canFloatControls,
+  openFloatingBar,
+  openRecordingBar,
+  type FloatingBar,
+  type RecordingBar,
+} from "@/lib/floatingBar";
 import { fileToDataUrl, isImage } from "@/lib/images";
 import { beginRecording, MAX_RECORDING_SECONDS, type RecordingSession } from "@/lib/recorder";
 import { sampleProject, sampleRedNotes } from "@/lib/sampleProject";
@@ -62,6 +68,7 @@ export default function Page() {
   const [recording, setRecording] = useState<Recording | null>(null);
   const [recordingActive, setRecordingActive] = useState(false);
   const [recordingStarting, setRecordingStarting] = useState(false);
+  const [recordingPaused, setRecordingPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const [rewritingSceneId, setRewritingSceneId] = useState<string | null>(null);
@@ -72,6 +79,7 @@ export default function Page() {
   const recordingSessionRef = useRef<RecordingSession | null>(null);
   const storedReadyRef = useRef(false);
   const floatingRef = useRef<FloatingBar | null>(null);
+  const recordingBarRef = useRef<RecordingBar | null>(null);
   const captureRef = useRef<() => void>(() => undefined);
   const stopRef = useRef<() => void>(() => undefined);
 
@@ -92,6 +100,8 @@ export default function Page() {
   useEffect(
     () => () => {
       recordingSessionRef.current?.stop();
+      recordingBarRef.current?.close();
+      recordingBarRef.current = null;
     },
     [],
   );
@@ -158,7 +168,7 @@ export default function Page() {
       }
       stream.getVideoTracks()[0]?.addEventListener("ended", () => stopShare());
 
-      if (canFloatCapture()) {
+      if (canFloatControls()) {
         try {
           floatingRef.current = await openFloatingBar({
             onCapture: () => captureRef.current(),
@@ -214,27 +224,62 @@ export default function Page() {
     if (recordingActive || recordingStarting) return;
     setNotice(null);
     setElapsed(0);
+    setRecordingPaused(false);
     setRecordingStarting(true);
 
     try {
       const session = await beginRecording({
-        onTick: (seconds) => setElapsed(seconds),
+        onTick: (seconds, paused) => {
+          setElapsed(seconds);
+          setRecordingPaused(paused);
+          recordingBarRef.current?.setClock(seconds, paused);
+        },
         onFinish: (result) => {
           recordingSessionRef.current = null;
+          recordingBarRef.current?.close();
+          recordingBarRef.current = null;
           setRecording(result);
           setScript(null);
           setActiveSceneId(null);
           setMode("script");
           setRecordingActive(false);
           setRecordingStarting(false);
+          setRecordingPaused(false);
           setElapsed(0);
         },
       });
       recordingSessionRef.current = session;
       setRecordingActive(true);
       setRecordingStarting(false);
+
+      if (canFloatControls()) {
+        try {
+          let opened: RecordingBar | null = null;
+          const bar = await openRecordingBar({
+            onPause: () => recordingSessionRef.current?.pause(),
+            onResume: () => recordingSessionRef.current?.resume(),
+            onStop: () => recordingSessionRef.current?.stop(),
+            onClose: () => {
+              if (recordingBarRef.current === opened) {
+                recordingBarRef.current = null;
+              }
+            },
+          });
+          opened = bar;
+          if (recordingSessionRef.current !== session) {
+            // The take ended while the floating window was opening.
+            bar.close();
+          } else {
+            bar.setClock(session.elapsed(), session.paused());
+            recordingBarRef.current = bar;
+          }
+        } catch {
+          // The strip in the page still has pause and stop.
+        }
+      }
     } catch (error) {
       setRecordingStarting(false);
+      setRecordingPaused(false);
       setNotice(
         error instanceof Error
           ? error.message
@@ -243,6 +288,14 @@ export default function Page() {
     }
   }, [recordingActive, recordingStarting]);
 
+  const pauseRecording = useCallback(() => {
+    recordingSessionRef.current?.pause();
+  }, []);
+
+  const resumeRecording = useCallback(() => {
+    recordingSessionRef.current?.resume();
+  }, []);
+
   const stopRecording = useCallback(() => {
     recordingSessionRef.current?.stop();
   }, []);
@@ -250,9 +303,12 @@ export default function Page() {
   const removeRecording = useCallback(() => {
     recordingSessionRef.current?.stop();
     recordingSessionRef.current = null;
+    recordingBarRef.current?.close();
+    recordingBarRef.current = null;
     setRecording(null);
     setRecordingActive(false);
     setRecordingStarting(false);
+    setRecordingPaused(false);
     setElapsed(0);
     setScript(null);
     setActiveSceneId(null);
@@ -687,6 +743,7 @@ export default function Page() {
             }
             recordingStarting={recordingStarting}
             recording={recordingActive}
+            recordingPaused={recordingPaused}
             elapsedSeconds={elapsed}
             limitSeconds={MAX_RECORDING_SECONDS}
             onStartRecording={() => {
@@ -696,6 +753,8 @@ export default function Page() {
               }
               void startRecording();
             }}
+            onPauseRecording={pauseRecording}
+            onResumeRecording={resumeRecording}
             onStopRecording={stopRecording}
             onRemoveRecording={removeRecording}
           />
