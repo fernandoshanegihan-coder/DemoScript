@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="900" height="560" role="img" aria-label="Campus Plate landing screen">
+  <rect width="900" height="560" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="900" height="56" fill="#FAFAF8"/>
+  <line x1="0" y1="56" x2="900" y2="56" stroke="#E6E5E0"/>
+  <circle cx="34" cy="28" r="9" fill="#C9D8C3"/>
+  <text x="52" y="34" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#1F2A24">Campus Plate</text>
+  <text x="640" y="34" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#6D7268">Menus</text>
+  <text x="716" y="34" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#6D7268">Wait times</text>
+  <text x="810" y="34" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#6D7268">Map</text>
+
+  <text x="72" y="150" font-family="Helvetica, Arial, sans-serif" font-size="13" letter-spacing="1" fill="#7C8A72">DINING ON CAMPUS</text>
+  <text x="72" y="206" font-family="Georgia, serif" font-size="40" fill="#1B241E">Know what's open</text>
+  <text x="72" y="252" font-family="Georgia, serif" font-size="40" fill="#1B241E">before you walk over.</text>
+  <text x="72" y="290" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#5C635C">Live menus, line lengths, and dietary filters for every hall on campus.</text>
+
+  <rect x="72" y="322" width="300" height="44" rx="6" fill="#FFFFFF" stroke="#CFD3C9"/>
+  <text x="90" y="349" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#9AA096">Search a hall or a dish</text>
+  <rect x="386" y="322" width="120" height="44" rx="6" fill="#24382B"/>
+  <text x="412" y="349" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#FFFFFF">Find food</text>
+
+  <rect x="560" y="120" width="280" height="180" rx="8" fill="#F4F6F2" stroke="#E1E5DB"/>
+  <rect x="580" y="142" width="120" height="10" rx="5" fill="#CBD3C4"/>
+  <rect x="580" y="164" width="200" height="8" rx="4" fill="#DDE2D7"/>
+  <rect x="580" y="182" width="170" height="8" rx="4" fill="#DDE2D7"/>
+  <rect x="580" y="222" width="86" height="30" rx="15" fill="#E4EADF"/>
+  <text x="598" y="242" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#46603F">Open now</text>
+  <rect x="676" y="222" width="86" height="30" rx="15" fill="#E4EADF"/>
+  <text x="694" y="242" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#46603F">4 min</text>
+  <text x="580" y="284" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#7B8478">Updated 2 minutes ago</text>
+
+  <rect x="72" y="404" width="768" height="100" rx="8" fill="#FBFBF9" stroke="#E6E5E0"/>
+  <text x="94" y="440" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#5C635C">Today at Wilson Hall</text>
+  <text x="94" y="466" font-family="Georgia, serif" font-size="20" fill="#1B241E">Roast chicken, wild rice, roasted carrots</text>
+  <text x="94" y="488" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#8D948A">Vegetarian · Gluten-free options available</text>
+</svg>

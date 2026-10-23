@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="900" height="560" role="img" aria-label="Campus map with dining pins">
+  <rect width="900" height="560" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="900" height="56" fill="#FAFAF8"/>
+  <line x1="0" y1="56" x2="900" y2="56" stroke="#E6E5E0"/>
+  <circle cx="34" cy="28" r="9" fill="#C9D8C3"/>
+  <text x="52" y="34" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#1F2A24">Campus Plate</text>
+  <text x="640" y="34" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#6D7268">Menus</text>
+  <text x="716" y="34" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#6D7268">Wait times</text>
+  <text x="810" y="34" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#24382B">Map</text>
+
+  <rect x="72" y="96" width="560" height="420" rx="8" fill="#F1F4EE"/>
+  <path d="M72 300 H632" stroke="#DCE3D6" stroke-width="14"/>
+  <path d="M300 96 V516" stroke="#DCE3D6" stroke-width="12"/>
+  <path d="M470 96 V516" stroke="#E4E9DF" stroke-width="8"/>
+  <path d="M72 200 H632" stroke="#E4E9DF" stroke-width="8"/>
+  <rect x="110" y="130" width="140" height="120" rx="6" fill="#E3E9DC"/>
+  <rect x="330" y="130" width="110" height="120" rx="6" fill="#E3E9DC"/>
+  <rect x="110" y="340" width="150" height="140" rx="6" fill="#E3E9DC"/>
+  <rect x="330" y="340" width="260" height="140" rx="6" fill="#E9EEE4"/>
+
+  <g font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#8D948A">
+    <text x="120" y="196">Library</text>
+    <text x="340" y="196">North Quad</text>
+    <text x="120" y="414">Student Union</text>
+    <text x="340" y="414">Tower Dining</text>
+  </g>
+
+  <g>
+    <circle cx="198" cy="268" r="20" fill="#24382B"/>
+    <text x="192" y="274" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#FFFFFF">4</text>
+    <circle cx="382" cy="330" r="20" fill="#7A6420"/>
+    <text x="376" y="336" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#FFFFFF">9</text>
+    <circle cx="470" cy="430" r="20" fill="#8C4231"/>
+    <text x="462" y="436" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#FFFFFF">18</text>
+  </g>
+
+  <rect x="660" y="96" width="168" height="240" rx="8" fill="#FBFBF9" stroke="#E6E5E0"/>
+  <g font-family="Helvetica, Arial, sans-serif">
+    <text x="680" y="126" font-size="13" fill="#1B241E">Near you</text>
+    <text x="680" y="158" font-size="12" fill="#5C635C">Wilson Hall</text>
+    <text x="680" y="176" font-size="11" fill="#8D948A">4 min · 2 blocks</text>
+    <line x1="680" y1="192" x2="808" y2="192" stroke="#EDEDE8"/>
+    <text x="680" y="216" font-size="12" fill="#5C635C">North Quad Market</text>
+    <text x="680" y="234" font-size="11" fill="#8D948A">9 min · 6 blocks</text>
+    <line x1="680" y1="250" x2="808" y2="250" stroke="#EDEDE8"/>
+    <text x="680" y="274" font-size="12" fill="#5C635C">Tower Dining</text>
+    <text x="680" y="292" font-size="11" fill="#8D948A">18 min · 1 block</text>
+  </g>
+</svg>
