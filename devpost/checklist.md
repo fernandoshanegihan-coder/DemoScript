@@ -93,3 +93,4 @@ Activity mode: [pending]
 ## Revisions
 
 - Added in-app screen capture (slice 2b) — the learner's project has one page, so a single screenshot cannot show the flow; frames captured from a shared window enter the same thumbnail list as uploads.
+- Capture moved into a floating always-on-top window — the first version made the user switch back to DemoScript for every frame, which is the friction the product exists to remove. Browsers without `documentPictureInPicture` keep the in-page bar.

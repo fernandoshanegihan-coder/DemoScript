@@ -5,6 +5,7 @@ import SkeletonStoryboard from "@/components/SkeletonStoryboard";
 import Storyboard from "@/components/Storyboard";
 import UploadColumn from "@/components/UploadColumn";
 import { frameFromVideo, startScreenShare } from "@/lib/capture";
+import { canFloatCapture, openFloatingBar, type FloatingBar } from "@/lib/floatingBar";
 import { fileToDataUrl, isImage } from "@/lib/images";
 import { sampleProject, sampleRedNotes } from "@/lib/sampleProject";
 import type { Shot, Tone } from "@/lib/types";
@@ -25,8 +26,12 @@ export default function Page() {
   const [minutes, setMinutes] = useState(2);
   const [notice, setNotice] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [floating, setFloating] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const floatingRef = useRef<FloatingBar | null>(null);
+  const captureRef = useRef<() => void>(() => undefined);
+  const stopRef = useRef<() => void>(() => undefined);
 
   const isSample = view === "sample";
 
@@ -34,6 +39,9 @@ export default function Page() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    floatingRef.current?.close();
+    floatingRef.current = null;
+    setFloating(false);
     setSharing(false);
   }, []);
 
@@ -50,6 +58,19 @@ export default function Page() {
         void videoRef.current.play().catch(() => undefined);
       }
       stream.getVideoTracks()[0]?.addEventListener("ended", () => stopShare());
+
+      if (canFloatCapture()) {
+        try {
+          floatingRef.current = await openFloatingBar({
+            onCapture: () => captureRef.current(),
+            onStop: () => stopRef.current(),
+          });
+          floatingRef.current.setRemaining(MAX_SHOTS - shots.length);
+          setFloating(true);
+        } catch {
+          // The in-page capture bar still works; nothing to report.
+        }
+      }
     } catch (error) {
       setNotice(
         error instanceof Error
@@ -57,7 +78,7 @@ export default function Page() {
           : "Screen sharing was blocked. Use Choose screenshots instead.",
       );
     }
-  }, [stopShare]);
+  }, [stopShare, shots.length]);
 
   const captureFrame = useCallback(() => {
     const video = videoRef.current;
@@ -85,6 +106,13 @@ export default function Page() {
             },
           ],
     );
+  }, [shots.length]);
+
+  captureRef.current = captureFrame;
+  stopRef.current = stopShare;
+
+  useEffect(() => {
+    floatingRef.current?.setRemaining(MAX_SHOTS - shots.length);
   }, [shots.length]);
 
   const addFiles = useCallback(
@@ -155,7 +183,7 @@ export default function Page() {
             isSample={isSample}
             maxShots={MAX_SHOTS}
             notice={notice}
-            sharing={sharing}
+            sharing={sharing && !floating}
             onStartShare={() => {
               if (isSample) {
                 setView("empty");

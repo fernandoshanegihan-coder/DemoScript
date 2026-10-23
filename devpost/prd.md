@@ -77,7 +77,8 @@ The right column's empty state is not decoration. It is the whole product drawn 
 For projects that only have one page, a single screenshot can't show "before the filter" and "after the filter." Capture makes those states into separate frames.
 
 - "Capture screenshots" sits beside "Choose screenshots" in the upload area.
-- Pressing it asks the browser to share a screen or window. Once sharing starts, a small bar replaces the buttons: "Sharing your screen. Switch to your project, then capture a frame."
+- Pressing it asks the browser to share a screen or window. Once sharing starts, a small always-on-top bar appears with one "Capture frame" button, so the user never has to switch tabs between frames. The bar shows how many of the 6 remain.
+- Where the browser can't float a window, the same bar appears inside the upload area instead, and everything still works.
 - "Capture frame" grabs the current frame and adds it as the next numbered thumbnail, with an empty note field, exactly like a dropped file.
 - The share stays open so several frames can come from the same page. "Stop sharing" ends it and returns the buttons.
 - Every frame follows the 6-screenshot cap.
@@ -187,6 +188,7 @@ The confirm step happens **after** the button, not before — the learner's deci
 - **Rubric present, nothing covered yet** — criteria all red; the panel explains what is missing rather than scoring zero.
 - **Unreadable or non-screenshot image** — the scene says it couldn't read the image and asks for a note; it does not invent a description.
 - **Screen sharing blocked or unsupported** — a plain line in the upload area says sharing was refused or isn't available, and points at "Choose screenshots." The rest of the app is unaffected.
+- **Floating capture unavailable** (Safari, Firefox, or the window fails to open) — the capture bar appears inside the upload area instead. No error, no lost work.
 - **Screen share ends outside the app** (the user clicks the browser's own "Stop sharing") — the capture bar disappears on its own and the buttons return.
 - **Empty rubric text after clearing** — panel disappears; existing scenes stay.
 - **Time limit mismatch** — the rubric's stated time differs from the chosen length; a plain notice appears and the user's length stands.

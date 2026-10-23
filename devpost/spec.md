@@ -88,7 +88,11 @@ Numbered thumbnails with drag reorder, a note field per screenshot ("what do you
 PRD ref: `prd.md > Uploading and arranging screenshots`.
 
 ### `CaptureBar` — frames from the user's own screen
-Two buttons sit under the drop area: "Choose screenshots" and "Capture screenshots." Capture calls `navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })`, keeps the returned stream alive in a ref, and shows a small bar: "Sharing your screen. Switch to your project, then capture a frame." Each "Capture frame" draws the current video frame to a canvas, encodes a JPEG like an upload, and appends a shot with an empty note. "Stop sharing" stops every track and unmount stops them too. No recording, no audio, no persisted frames.
+Two buttons sit under the drop area: "Choose screenshots" and "Capture screenshots." Capture calls `navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })`, keeps the returned stream alive in a ref, and shows a small bar with one "Capture frame" button, a remaining count, and "Stop sharing."
+
+Where `documentPictureInPicture` is available, that bar opens as a small always-on-top window so the user can stay focused on the project they're demoing; otherwise it renders inside the upload area. The floating window is built with plain DOM and inline styles — it is a separate document, so React handlers and Tailwind classes don't apply there. Its buttons call back into the page's capture and stop functions through refs.
+
+Each "Capture frame" draws the current video frame to a canvas, encodes a JPEG like an upload, and appends a shot with an empty note. "Stop sharing" stops every track and unmount stops them too. Closing the floating window ends the share. No recording, no audio, no persisted frames.
 PRD ref: `prd.md > Capturing frames from your own screen`.
 
 ### `RubricBox` — optional criteria
@@ -188,6 +192,7 @@ demoscript/
 │   ├── types.ts                # the types above
 │   ├── timing.ts               # words → seconds
 │   ├── capture.ts              # getDisplayMedia + frame grabbing
+│   ├── floatingBar.ts          # always-on-top capture window
 │   ├── cuts.ts                 # cut-flag rules
 │   ├── rubric.ts               # course criteria constant + time-limit detection
 │   └── sampleProject.ts        # cached example (no model call)
