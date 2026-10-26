@@ -192,6 +192,8 @@ Conversions advance together in one-second increments, then finalize. Abort canc
 
 ## Sharing and Submission Links
 
+- Open-source license: MIT, approved by the learner on 26 October 2026. Complete root LICENSE file: https://github.com/fernandoshanegihan-coder/DemoScript/blob/main/LICENSE.
+
 - Public repository: https://github.com/fernandoshanegihan-coder/DemoScript — application publication and anonymous access verified on 26 October 2026 at commit d1d2374. The app, Launchpad video/audio sample and app map are present. The existing GitHub initial README commit is preserved in the merged history.
 - The learner explicitly authorized publishing the reviewed local source, sample media and history on 26 October 2026. Secret environment files and the private learner profile are excluded. The separate untracked public/sample-app source folder was not uploaded.
 - Submission demo video: https://www.youtube.com/watch?v=UTvgLxSsgRI — titled DemoScript, approximately 2:14. The page loaded signed out and playback started without a login requirement on 26 October 2026. Exact form constraints remain to be checked in the learner's submission form. The walkthrough shows DemoScript's upload/context/analysis start, an explicitly identified prepared sample, rehearsal, narration and video export. Original preview audio is preserved without overlapping added narration. The Launchpad clip alone is the app's built-in sample, not a replacement for this DemoScript walkthrough.

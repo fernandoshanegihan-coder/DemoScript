@@ -1,5 +1,7 @@
 # DemoScript
 
+Licensed under the [MIT License](LICENSE).
+
 Turn your project’s story and screen recording into a professional demo, blending a confident pitch with a product walkthrough. Record your voice or generate narration, scene by scene.
 
 No signup or server project database. One current clip, browser-local saving, and a finished video download.

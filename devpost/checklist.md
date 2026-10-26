@@ -228,6 +228,8 @@ Activity mode: Prior practice connected plus brief source/evidence recap and a s
 
 ## Submission and Deployment
 
+- [x] Learner approved the MIT License; complete root LICENSE file prepared with matching package metadata and README link. Submission URL: https://github.com/fernandoshanegihan-coder/DemoScript/blob/main/LICENSE. GitHub detection is checked after publication.
+
 - [x] Local publication precheck reviewed 14 existing Git revisions: no saved Gemini/Azure keys or common credential patterns found, and no credential environment file or learner-profile history path found. Current ignore rules protect both. This targeted check is not a guarantee against every kind of private data.
 - [x] Public repository and intended source files verified anonymously on 26 October 2026 at commit d1d2374: app, Launchpad sample and app map present.
 - [x] Published the authorized app and history to https://github.com/fernandoshanegihan-coder/DemoScript, preserving the existing GitHub README commit.
