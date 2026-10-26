@@ -230,14 +230,15 @@ Activity mode: Prior practice connected plus brief source/evidence recap and a s
 
 - [x] Local publication precheck reviewed 14 existing Git revisions: no saved Gemini/Azure keys or common credential patterns found, and no credential environment file or learner-profile history path found. Current ignore rules protect both. This targeted check is not a guarantee against every kind of private data.
 - [ ] Public repository and intended source files verified.
+- [x] Located the learner's public DemoScript repository at https://github.com/fernandoshanegihan-coder/DemoScript and verified anonymous access. The learner authorized uploading the reviewed app and preserving its existing README commit on 26 October 2026; upload verification is pending.
 - [ ] Credentials excluded from the public repository; deployment environment configured separately if deploying.
 - [ ] Demo video recorded and accessible through the submission's required format/link.
 - [ ] Learner writes and completes the actual Devpost fields and required survey.
 - [ ] If publicly deploying: verify hosting upload/time limits, HTTPS/browser media behavior and persistent shared usage limits/access controls.
 
-No public deployment, repository link or completed submission is asserted by this checklist. The current local preview is localhost:3001. Azure resource setup and a successful API test do not mean the website is deployed.
+The public repository currently contains only its initial README; application publication and submission are still pending. No public deployment is asserted. The current local preview is localhost:3001. Azure resource setup and a successful API test do not mean the website is deployed.
 
-Shipping status reported by the learner: no repository or demo-video link created yet. Repository creation/push and public visibility still require explicit authorization; no publishing has occurred.
+The learner initially reported no submission links. After GitHub connection, the public DemoScript repository above was discovered with an initial README. The learner subsequently authorized publishing the reviewed code, sample and history. The demo-video link is still missing.
 
 ## Superseded Plans
 

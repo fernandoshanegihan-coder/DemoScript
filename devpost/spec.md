@@ -190,6 +190,13 @@ Conversions advance together in one-second increments, then finalize. Abort canc
 | Interrupted export | Cancel safely; source clip and takes remain |
 | IndexedDB failure | Show save warning and warn before leaving |
 
+## Sharing and Submission Links
+
+- Public repository target: https://github.com/fernandoshanegihan-coder/DemoScript — confirmed accessible without authentication on 26 October 2026. It currently contains the initial README only; the application has not been uploaded. Preserve that existing commit when publishing the reviewed local history.
+- The learner explicitly authorized publishing the reviewed local source, sample media and history on 26 October 2026. Upload verification is pending. Secret environment files and the private learner profile are excluded. The separate untracked public/sample-app source folder is not part of the prepared upload.
+- Submission demo-video link: not created yet. The Launchpad clip is the app's built-in sample, not a replacement for a video showing DemoScript itself working.
+- Live deployment: optional; not performed or required for the local proof-of-concept demonstration.
+
 ## Verification
 
 Latest recorded checks: 39 regression tests, TypeScript validation during production build, and final Webpack build passed. Synthetic live story tests covered 15-, 30-, 20- and 35-second scenes, missing-context questions and continuation without video.
