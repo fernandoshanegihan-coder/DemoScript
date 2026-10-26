@@ -25,6 +25,7 @@ The optional rubric remains useful supporting evidence: it shows criteria that t
 ## The Core Loop
 
 1. Upload a screen recording or record the screen in the app. Both paths support up to three minutes; uploads are capped at 250 MiB.
+   Visitors can instead select **Try a sample demo**: the learner's 91-second Launchpad recording opens separately with a prepared descriptive script, project answers and eight voice takes. Sample mode bypasses the saved project and resets on reload; no analysis or synthesis call is needed to load it.
 2. Choose Hackathon, University project, Client pitch or Portfolio, and whether the presenter speaks as I or We.
 3. Answer the required project questions: audience/problem, solution and key demo moments. Difference and takeaway are optional. Paste a rubric if available.
 4. Select **Make my script**. Gemini reads the recording into timestamped visual observations and optional criterion mappings.
@@ -48,6 +49,7 @@ The browser saves the current clip, context, pending analysis, script and takes.
 In scope:
 
 - One recording at a time, captured picture only or uploaded from disk.
+- One built-in Launchpad example using a real recording and prepared narration, isolated from the visitor's saved work.
 - Pause/resume during capture and floating controls where supported.
 - Four audience presets, I/We and a short project interview.
 - Gemini video analysis, fixed scene timings, focused follow-ups and text-only writing retries.
@@ -63,7 +65,7 @@ In scope:
 Out of scope:
 
 - Generating footage, a full timeline editor, reordering shots, trimming voice takes, music or burned-in captions.
-- Screenshot input, cached sample projects or multiple input strategies.
+- Screenshot input, a sample-project library or multiple input strategies beyond the single bundled recording example.
 - Accounts, cloud project storage, collaboration and a multi-project library.
 - Gemini, Kokoro or OpenRouter TTS in the current app.
 - Voice cloning or custom voices.
@@ -72,7 +74,7 @@ Out of scope:
 ## Decisions That Changed During the Build
 
 - The project name is DemoScript; it is no longer an unnamed working title.
-- Recording became the sole input. Earlier screenshot and capture-frame work is historical.
+- Recording became the sole input. Earlier screenshot and capture-frame work is historical. The learner later requested a built-in visitor example and supplied a Launchpad recording; its prepared script/voice are bundled for instant exploration without AI processing.
 - Story quality became the main goal. The rubric panel supports the story instead of defining the entire product.
 - The creator interview and focused follow-ups supply context silent footage cannot provide.
 - The video's duration is authoritative. There is no separate 1–3 minute target-length selector.
@@ -88,7 +90,7 @@ Possible future work includes caption-file export, richer voice controls, take t
 
 ## Validation and Remaining Work
 
-Automated checks and synthetic browser checks have exercised script duration fitting, follow-up continuation, timeline protection and combined video/audio export. The latest recorded implementation check passed 36 regression tests and a production build. A live Azure check generated 9.8625 seconds of narration for a 10-second scene; a browser acceptance fixture produced a 16-second MP4 with AVC video and AAC audio while keeping an existing take.
+Automated checks and synthetic browser checks have exercised script duration fitting, follow-up continuation, timeline protection and combined video/audio export. The latest recorded implementation check passed 39 regression tests and a production build. A live Azure check generated 9.8625 seconds of narration for a 10-second scene; a browser acceptance fixture produced a 16-second MP4 with AVC video and AAC audio while keeping an existing take.
 
 These are bounded checks, not proof of quality for every recording or device. A final run with the learner's own footage, downloaded-video playback, learning wrap-up and submission packaging remain open in [checklist.md](checklist.md).
 

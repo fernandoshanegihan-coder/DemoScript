@@ -1,12 +1,8 @@
-import { formatClock } from "@/lib/timing";
-
 export default function SkeletonStoryboard({
   onTrySample,
-  minutes,
   busyLine,
 }: {
   onTrySample: () => void;
-  minutes: number;
   busyLine?: string | null;
 }) {
   return (
@@ -15,9 +11,7 @@ export default function SkeletonStoryboard({
         <div className="mb-6">
           <div className="mb-2 flex items-baseline justify-between">
             <span className="text-[12px] text-muted">Running time</span>
-            <span className="text-[13px] tabular-nums text-muted">
-              0:00 / {formatClock(minutes * 60)}
-            </span>
+            <span className="text-[13px] tabular-nums text-muted">0:00</span>
           </div>
           <div className="h-px w-full bg-hairline" />
         </div>
@@ -43,20 +37,24 @@ export default function SkeletonStoryboard({
         <div className="max-w-[23rem] px-6 text-center">
           <p className="text-[15px] leading-relaxed text-ink">
             {busyLine ??
-              "Your script will appear here, scene by scene, with a checklist showing what each scene proves."}
+              "Your project’s story will take shape here: the problem, the solution, the proof, and a takeaway worth remembering."}
           </p>
           {busyLine ? (
             <p className="mt-3 text-[12px] text-muted">
               Keep this tab open — usually ten to thirty seconds.
             </p>
           ) : (
+            <div className="mt-4 space-y-3">
+            <a href="/?sample=launchpad" target="_blank" rel="noopener" className="inline-block bg-accent px-4 py-2 text-[12.5px] text-paper">Try a sample demo</a>
+            <p className="text-[11.5px] text-muted">Launchpad · Ready-made script and voice · Opens separately</p>
             <button
               type="button"
               onClick={onTrySample}
               className="mt-4 text-[12.5px] text-accent underline decoration-hairline underline-offset-4 hover:decoration-accent"
             >
-              Try it with a sample project
+              Try it with a recording you already have
             </button>
+            </div>
           )}
         </div>
       </div>

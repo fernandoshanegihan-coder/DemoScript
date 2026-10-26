@@ -1,5 +1,8 @@
 export const MAX_RECORDING_SECONDS = 180;
 
+/** Same cap the upload API enforces. */
+export const MAX_UPLOAD_BYTES = 250 * 1024 * 1024;
+
 export type RecordingResult = {
   blob: Blob;
   mimeType: string;
@@ -9,16 +12,22 @@ export type RecordingResult = {
 };
 
 export type RecordingSession = {
+  start: () => void;
   stop: () => void;
+  cancel: () => void;
   pause: () => void;
   resume: () => void;
   elapsed: () => number;
   paused: () => boolean;
+  started: () => boolean;
 };
 
 type StartOptions = {
   onTick: (elapsedSeconds: number, paused: boolean) => void;
   onFinish: (result: RecordingResult) => void;
+  onCancel?: () => void;
+  /** Arm the take and wait for `start()`. Defaults to starting at once. */
+  autoStart?: boolean;
 };
 
 /**
@@ -41,6 +50,88 @@ export function canRecordScreen(): boolean {
     typeof navigator.mediaDevices?.getDisplayMedia === "function" &&
     typeof MediaRecorder !== "undefined"
   );
+}
+
+export function isVideoFile(file: File): boolean {
+  return (
+    file.type.startsWith("video/") || /\.(webm|mp4|m4v|mov)$/i.test(file.name)
+  );
+}
+
+/**
+ * MediaRecorder writes WebM without a duration header, so `duration` is often
+ * Infinity. Seeking past the end makes the browser work it out.
+ */
+async function readDuration(url: string): Promise<number> {
+  const video = document.createElement("video");
+  video.preload = "metadata";
+  video.muted = true;
+  video.src = url;
+
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("metadata timeout")), 8000);
+    video.onloadedmetadata = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    video.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("metadata failed"));
+    };
+  });
+
+  if (Number.isFinite(video.duration) && video.duration > 0) {
+    return video.duration;
+  }
+
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 3000);
+    video.ontimeupdate = () => {
+      clearTimeout(timer);
+      video.ontimeupdate = null;
+      resolve();
+    };
+    video.currentTime = 1e101;
+  });
+
+  return Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+}
+
+/**
+ * A recording the student already has. Read its length and poster frame here so
+ * it behaves exactly like one made in the browser.
+ */
+export async function inspectVideo(file: File): Promise<RecordingResult> {
+  if (!isVideoFile(file)) {
+    throw new Error("That file isn't a screen recording. Use a .webm, .mp4 or .mov file.");
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error("That recording is larger than 250 MB. Three minutes is the limit.");
+  }
+
+  const url = URL.createObjectURL(file);
+  try {
+    const seconds = await readDuration(url);
+    if (!Number.isFinite(seconds) || seconds <= 0) throw new Error("Unknown video duration.");
+    if (seconds > MAX_RECORDING_SECONDS) {
+      throw new Error("Use a recording no longer than three minutes.");
+    }
+    const posterDataUrl = await posterFor(file, seconds);
+    return {
+      blob: file,
+      mimeType: file.type || "video/webm",
+      durationSeconds: seconds,
+      posterDataUrl,
+      createdAt: Date.now(),
+    };
+  } catch (error) {
+    throw new Error(
+      error instanceof Error && error.message.includes("three minutes") ? error.message :
+      "That recording couldn't be read. Try a .webm or .mp4 file, or record your screen instead.",
+    );
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 /**
@@ -120,10 +211,12 @@ async function posterFor(blob: Blob, durationSeconds: number): Promise<string> {
 export async function beginRecording({
   onTick,
   onFinish,
+  onCancel,
+  autoStart = true,
 }: StartOptions): Promise<RecordingSession> {
   if (!canRecordScreen()) {
     throw new Error(
-      "This browser can't record the screen — use Chrome, or drop screenshots instead.",
+      "This browser can't record the screen — use Chrome, or upload a recording instead.",
     );
   }
 
@@ -135,35 +228,67 @@ export async function beginRecording({
     });
   } catch {
     throw new Error(
-      "Screen recording was blocked or cancelled. Allow this tab to share a screen, or drop screenshots instead.",
+      "Screen recording was blocked or cancelled. Allow this tab to share a screen, or upload a recording instead.",
     );
   }
 
   const mimeType = preferredMimeType();
-  const recorder = new MediaRecorder(
-    stream,
-    mimeType
-      ? { mimeType, videoBitsPerSecond: 2_500_000 }
-      : { videoBitsPerSecond: 2_500_000 },
-  );
+
+  // A refused codec must not strand the share: the stream is already live,
+  // so release it before surfacing the plain failure line.
+  let recorder: MediaRecorder;
+  try {
+    recorder = new MediaRecorder(
+      stream,
+      mimeType
+        ? { mimeType, videoBitsPerSecond: 2_500_000 }
+        : { videoBitsPerSecond: 2_500_000 },
+    );
+  } catch {
+    stream.getTracks().forEach((track) => track.stop());
+    throw new Error(
+      "This browser can't record the screen — use Chrome, or upload a recording instead.",
+    );
+  }
 
   const chunks: Blob[] = [];
   let finished = false;
+  let started = false;
   let paused = false;
   let recordedMs = 0;
-  let segmentStartedAt: number | null = Date.now();
+  let segmentStartedAt: number | null = null;
+  let ticker: number | null = null;
 
   const elapsed = () => recordedSeconds(recordedMs, segmentStartedAt);
 
-  const ticker = window.setInterval(() => {
-    const seconds = elapsed();
-    onTick(seconds, paused);
-    if (!paused && seconds >= MAX_RECORDING_SECONDS) void finish();
-  }, 250);
+  function clearTicker() {
+    if (ticker !== null) {
+      window.clearInterval(ticker);
+      ticker = null;
+    }
+  }
 
   function cleanup() {
-    window.clearInterval(ticker);
+    clearTicker();
     stream.getTracks().forEach((track) => track.stop());
+  }
+
+  /**
+   * The clock and the file both begin here, not when the window was picked.
+   * Nothing before this call can end up in the clip.
+   */
+  function start() {
+    if (finished || started) return;
+    started = true;
+    paused = false;
+    segmentStartedAt = Date.now();
+    recorder.start(1000);
+    onTick(0, false);
+    ticker = window.setInterval(() => {
+      const seconds = elapsed();
+      onTick(seconds, paused);
+      if (!paused && seconds >= MAX_RECORDING_SECONDS) void finish();
+    }, 250);
   }
 
   /**
@@ -171,7 +296,7 @@ export async function beginRecording({
    * dropped, so the clip never shows a frozen frame or a dead stretch.
    */
   function pause() {
-    if (finished || paused) return;
+    if (finished || !started || paused) return;
     if (segmentStartedAt !== null) {
       recordedMs += Math.max(0, Date.now() - segmentStartedAt);
       segmentStartedAt = null;
@@ -182,17 +307,29 @@ export async function beginRecording({
   }
 
   function resume() {
-    if (finished || !paused) return;
+    if (finished || !started || !paused) return;
     if (recorder.state === "paused") recorder.resume();
     segmentStartedAt = Date.now();
     paused = false;
     onTick(elapsed(), false);
   }
 
-  async function finish() {
+  /** Release the stream without producing a take — the armed state's exit. */
+  function cancel() {
     if (finished) return;
     finished = true;
-    window.clearInterval(ticker);
+    cleanup();
+    onCancel?.();
+  }
+
+  async function finish() {
+    if (finished) return;
+    if (!started) {
+      cancel();
+      return;
+    }
+    finished = true;
+    clearTicker();
 
     const durationSeconds = Math.max(1, Math.round(elapsed()));
     const stopped = new Promise<void>((resolve) => {
@@ -231,14 +368,22 @@ export async function beginRecording({
 
   stream.getVideoTracks()[0]?.addEventListener("ended", () => void finish());
 
-  recorder.start(1000);
-  onTick(0, false);
+  if (autoStart) start();
 
   return {
-    stop: () => void finish(),
+    start,
+    stop: () => {
+      if (!started) {
+        cancel();
+        return;
+      }
+      void finish();
+    },
+    cancel,
     pause,
     resume,
     elapsed,
     paused: () => paused,
+    started: () => started,
   };
 }

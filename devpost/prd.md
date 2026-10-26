@@ -13,6 +13,7 @@ Source: [scope.md](scope.md). This document describes the current implementation
 ## The Core Journey
 
 1. Arrive on one page with the input column and an empty storyboard.
+   **Try a sample demo** opens the prepared Launchpad example in a separate tab; it does not replace the visitor's current work.
 2. Upload or record a clip of up to three minutes.
 3. Choose the demo type and I/We.
 4. Answer the first three project questions; optionally provide difference, takeaway and a rubric.
@@ -30,11 +31,20 @@ One main page with no signup or settings page. The header names DemoScript and t
 
 Inputs include a recording picker/capture controls, four presets, I/We, the project interview and optional rubric. The **Make my script** button explains missing prerequisites. There is no independent target-duration selector.
 
-The output includes the video player, scene timestamps, narration, captions, visual observations, word-count guidance and optional criterion mappings. Script, Rehearse and Record modes become available after a script exists. The empty state explains the story-and-footage workflow and offers a recording picker rather than a bundled sample project.
+The output includes the video player, scene timestamps, narration, captions, visual observations, word-count guidance and optional criterion mappings. Script, Rehearse and Record modes become available after a script exists. The empty state offers **Try a sample demo** plus the existing recording picker. A **Sample demo** header link also makes the example accessible when work already exists.
 
 The visual direction stays light and calm: warm off-white, restrained accent, hairline borders, clear reading typography and meaningful warning/status colors.
 
 ## Features and Behavior
+
+### Built-in Launchpad Example
+
+- The supplied Launchpad recording (90.6123 seconds of browser playback) is bundled with project answers, eight timestamped descriptive passages and eight prepared Azure voice takes.
+- The sample opens at /?sample=launchpad in a separate tab. It never restores, saves over or clears the visitor's IndexedDB project.
+- A visible banner labels the example as prepared and explains that edits reset on reload. **Open your own project** opens the normal saved-work route separately.
+- Loading uses static media and prepared text, without Gemini analysis or Azure generation requests. Explicit regeneration/rewrites remain normal service calls.
+- Visitors can edit, rehearse, play the takes and export the combined video. Prepared takes are validated against script text and scene lengths.
+- A sample loading failure leaves saved work unchanged. The app must not silently substitute a different clip or an ungrounded script.
 
 ### Recording and Uploading
 
@@ -144,7 +154,7 @@ The visual direction stays light and calm: warm off-white, restrained accent, ha
 
 The current workflow prioritizes story quality and footage alignment, supported by optional rubric review. It does not generate new footage, trim or reorder video, clone voices, add music, burn in captions or maintain accounts.
 
-Earlier requirements for screenshots, a target-length stepper, Gemini/Kokoro/OpenRouter voices, separate-files-only delivery, overlapping audio and intentionally temporary takes are superseded.
+Earlier requirements for screenshots, a target-length stepper, Gemini/Kokoro/OpenRouter voices, separate-files-only delivery, overlapping audio and intentionally temporary takes are superseded. The learner explicitly added back one real recording example for visitors; this does not restore the old screenshot sample flow or a project library.
 
 ## Acceptance Still Required
 

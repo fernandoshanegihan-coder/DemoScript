@@ -1,0 +1,50 @@
+[
+  {
+    "id": "launchpad-1",
+    "seconds": 13.5,
+    "slot": 18,
+    "spokenLine": "Student projects can lose direction when tasks, owners and updates live in different places. Launchpad brings that work onto one shared board, so the team can see what is waiting, what is underway and what is finished."
+  },
+  {
+    "id": "launchpad-2",
+    "seconds": 23.733333333333334,
+    "slot": 26,
+    "spokenLine": "To make the next step concrete, we add a task called Record the demo. We choose Alex as its owner and give it high priority. Naming both the responsibility and the urgency makes this more useful than a loose reminder: the board tells the team what needs attention and who is taking it forward."
+  },
+  {
+    "id": "launchpad-3",
+    "seconds": 9.7375,
+    "slot": 12,
+    "spokenLine": "The new task sits in To do with its owner and priority attached. Progress reflects the task list, keeping unfinished work visible rather than hiding it."
+  },
+  {
+    "id": "launchpad-4",
+    "seconds": 4.6,
+    "slot": 6,
+    "spokenLine": "We move Record the demo into progress, making active work visible."
+  },
+  {
+    "id": "launchpad-5",
+    "seconds": 2.7638333333333334,
+    "slot": 3,
+    "spokenLine": "Completed tasks increase project progress."
+  },
+  {
+    "id": "launchpad-6",
+    "seconds": 7.95,
+    "slot": 9,
+    "spokenLine": "My tasks narrows the board to Maya’s work while the progress bar still represents the whole project."
+  },
+  {
+    "id": "launchpad-7",
+    "seconds": 9.775,
+    "slot": 12,
+    "spokenLine": "High priority switches the view to urgent work across the team. We can still see each task’s owner and stage without losing the project-wide progress measure."
+  },
+  {
+    "id": "launchpad-8",
+    "seconds": 4.227625,
+    "slot": 4.612300000000005,
+    "spokenLine": "That shared view turns individual updates into visible team progress."
+  }
+]

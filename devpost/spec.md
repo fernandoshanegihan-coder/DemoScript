@@ -14,6 +14,14 @@ The browser holds one recording and the current work. A Next.js server keeps ser
 
 There is no server project database, cloud media library or login. IndexedDB is local persistence, not a backup service.
 
+## Built-in Sample
+
+The learner-supplied Launchpad recording is served as public/sample/launchpad.mp4 (90.6123 seconds of browser playback, about 25.8 MB). Its MP4 track metadata includes offsets and reports a different end time, so scene budgets use the verified browser duration. lib/sampleDemo.ts supplies the factual project brief and eight fixed scene passages; public/sample/launchpad/ contains prepared WAV takes and narration.json with text/slot/duration metadata. lib/loadSampleDemo.ts fetches and validates these assets, inspects the clip and constructs the normal recording/scenes/takes state. The final scene is bounded to the inspected playback duration.
+
+The /?sample=launchpad route is handled by the existing client page. It bypasses normal session restoration and never enables its save-ready flag. lib/sessionStore.ts additionally refuses load/save/clear while that sample query is active. This protects normal saved work even when the sample is edited or removed. A new tab and visible banner separate the example from the visitor's own project. Reload resets sample edits.
+
+Initial sample loading makes no Gemini or Azure call. Explicit rewriting or regeneration still uses the configured service. scripts/prepare-launchpad-narration.mjs is an authoring-only Azure operation, not a visitor request: it reuses takes only when the prepared text matches and writes a resumable metadata manifest. Each bundled take must fit its actual scene duration. The supplied recording remains intact; combined export replaces its original audio using the normal narration mixer.
+
 ## Stack
 
 | Area | Current implementation |
@@ -122,6 +130,8 @@ The historical /api/analyze and /api/tts routes are absent.
 | SceneTake | blob, spokenLine snapshot, durationSeconds, source: voice or tts, status, wpm, wpmOutOfRange |
 | StoredSession | recording, scenes, criteria, rubric, preset, narrator, takes, brief, pendingStory, contextAnswers |
 
+Sample preview uses the same in-memory state types but does not access StoredSession.
+
 lib/sessionStore.ts serializes writes to IndexedDB database demoscript, version 1, store session, key current. app/page.tsx schedules saves after 150 ms and reports saving/saved/failed. Blobs are stored directly; no base64 media store or server database is used.
 
 Restoration does not generate a new script or synthesize voice. Browser storage is scoped to origin, including port. Saving may fail; site-data deletion removes the session. Export blobs are cached in component state and rebuilt after reload.
@@ -182,7 +192,7 @@ Conversions advance together in one-second increments, then finalize. Abort canc
 
 ## Verification
 
-Latest recorded checks: 36 regression tests, TypeScript validation during production build, and final Webpack build passed. Synthetic live story tests covered 15-, 30-, 20- and 35-second scenes, missing-context questions and continuation without video.
+Latest recorded checks: 39 regression tests, TypeScript validation during production build, and final Webpack build passed. Synthetic live story tests covered 15-, 30-, 20- and 35-second scenes, missing-context questions and continuation without video.
 
 Azure connection check: a synthetic 10-second scene produced a 9.8625-second WAV in about two seconds on this machine; this is a sample, not a latency guarantee. Browser acceptance generated one missing voice, kept an existing microphone-source take, skipped a silent transition and downloaded a 16-second MP4 with one AAC audio track and AVC video.
 

@@ -6,13 +6,16 @@ import CriteriaPanel from "./CriteriaPanel";
 import SceneCard from "./SceneCard";
 import { cutNote } from "@/lib/cuts";
 import { formatClock } from "@/lib/timing";
-import type { Criterion, Scene, ScenePatch, Shot } from "@/lib/types";
+import type { Criterion, Scene, ScenePatch } from "@/lib/types";
 
 type Props = {
   scenes: Scene[];
-  shots: Shot[];
+  /** One frame from the recording, shown beside every scene. */
+  poster?: string | null;
   criteria: Criterion[];
-  lengthSeconds: number;
+  /** How long the clip took to read, in seconds. */
+  readSeconds?: number | null;
+  timelineSeconds?: number;
   redNotes?: Record<string, string>;
   activeSceneId?: string | null;
   onSeekScene?: (scene: Scene) => void;
@@ -22,13 +25,16 @@ type Props = {
   onUpdateScene?: (sceneId: string, patch: ScenePatch) => void;
   onRewriteScene?: (sceneId: string) => void;
   onDeleteScene?: (sceneId: string) => void;
+  onImproveFlow?: () => void;
+  improvingFlow?: boolean;
 };
 
 export default function Storyboard({
   scenes,
-  shots,
+  poster = null,
   criteria,
-  lengthSeconds,
+  readSeconds = null,
+  timelineSeconds,
   redNotes,
   activeSceneId = null,
   onSeekScene,
@@ -38,19 +44,21 @@ export default function Storyboard({
   onUpdateScene,
   onRewriteScene,
   onDeleteScene,
+  onImproveFlow,
+  improvingFlow = false,
 }: Props) {
   const [copied, setCopied] = useState(false);
-  const used = scenes.reduce((sum, scene) => sum + scene.seconds, 0);
-  const shotById = new Map(shots.map((shot) => [shot.id, shot]));
+  const used = timelineSeconds ?? scenes.reduce((sum, scene) => sum + scene.seconds, 0);
   const labelById = new Map(
     criteria.map((criterion) => [criterion.id, criterion.label]),
   );
 
   async function copyScript() {
-    const lines = [`Demo script — ${formatClock(lengthSeconds)}`, ""];
+    const lines = [`Demo script — ${formatClock(used)}`, ""];
 
     scenes.forEach((scene, index) => {
-      lines.push(`${index + 1}. (${formatClock(scene.seconds)})`);
+      lines.push(`${index + 1}. (${formatClock(scene.startSeconds ?? 0)}–${formatClock((scene.startSeconds ?? 0) + scene.seconds)})`);
+      if (scene.visualDescription) lines.push(`On screen: ${scene.visualDescription}`);
       lines.push(scene.spokenLine);
       if (scene.caption) lines.push(`Caption: ${scene.caption}`);
       lines.push("");
@@ -67,8 +75,22 @@ export default function Storyboard({
 
   return (
     <div>
-      <div className="mb-6 flex items-baseline justify-between gap-4">
-        <p className="text-[12px] text-muted">Your script</p>
+      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4">
+        <p className="text-[12px] text-muted">
+          Your script
+          {readSeconds != null ? (
+            <span className="ml-2 text-[11px] tabular-nums text-faint">
+              read in{" "}
+              {readSeconds >= 60
+                ? formatClock(readSeconds)
+                : `${Math.round(readSeconds)} second${Math.round(readSeconds) === 1 ? "" : "s"}`}
+            </span>
+          ) : null}
+        </p>
+        {onImproveFlow ? <button type="button" disabled={improvingFlow || scenes.length === 0} onClick={onImproveFlow}
+          className="text-[12px] text-accent underline decoration-hairline underline-offset-4 disabled:opacity-40">
+          {improvingFlow ? "Developing explanations…" : "Expand explanations"}
+        </button> : null}
         <button
           type="button"
           onClick={() => void copyScript()}
@@ -78,11 +100,7 @@ export default function Storyboard({
         </button>
       </div>
 
-      <ClockBar
-        used={used}
-        limit={lengthSeconds}
-        statedMinutes={statedMinutes}
-      />
+      <ClockBar used={used} statedMinutes={statedMinutes} />
 
       <div className="border-t border-hairline">
         {scenes.length === 0 ? (
@@ -94,14 +112,14 @@ export default function Storyboard({
           <SceneCard
             key={scene.id}
             scene={scene}
-            shot={shotById.get(scene.shotId)}
+            poster={poster ?? undefined}
             index={index}
             covers={scene.covers
               .map((id) => labelById.get(id))
               .filter((label): label is string => Boolean(label))}
             active={scene.id === activeSceneId}
             onSeek={onSeekScene ? () => onSeekScene(scene) : undefined}
-            cutNote={cutNote(scene.seconds, scene.covers, lengthSeconds)}
+            cutNote={criteria.length ? cutNote(scene.seconds, scene.covers, used) : null}
             editable={editable}
             rewriting={rewritingSceneId === scene.id}
             onUpdate={

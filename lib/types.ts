@@ -1,24 +1,8 @@
-export type Tone = "professional" | "energetic" | "storytelling";
+/** What kind of demo this is. The preset rewrites the script's voice and focus. */
+export type Preset = "hackathon" | "university" | "client-pitch" | "portfolio";
 
-export type Action = {
-  id: string;
-  note: string;
-};
-
-export type Shot = {
-  id: string;
-  fileName: string;
-  dataUrl: string;
-  note: string;
-  actions: Action[];
-};
-
-export type Analysis = {
-  shotId: string;
-  description: string;
-  elements: string[];
-  confident: boolean;
-};
+/** Who speaks in the script: a solo builder, or a team presenting together. */
+export type Narrator = "i" | "we";
 
 export type Criterion = {
   id: string;
@@ -26,29 +10,17 @@ export type Criterion = {
   source: string;
 };
 
-export type ScriptScene = {
-  shotId: string;
-  actionId: string;
-  spokenLine: string;
-  caption: string;
-  covers: string[];
-};
-
-export type ScriptResult = {
-  criteria: Criterion[];
-  scenes: ScriptScene[];
-};
-
 export type Scene = {
   id: string;
-  shotId: string;
-  actionId: string;
   spokenLine: string;
   caption: string;
+  /** Grounded observation of this exact interval, separate from rewrite requests. */
+  visualDescription?: string;
+  /** A note for rewriting this one scene. Empty is normal. */
   description: string;
   covers: string[];
   seconds: number;
-  /** Recording path only: the second in the clip where this scene begins. */
+  /** The second in the clip where this scene begins. */
   startSeconds?: number;
 };
 
@@ -65,11 +37,19 @@ export type Recording = {
   createdAt: number;
 };
 
-export type SampleProject = {
-  shots: Shot[];
-  scenes: Scene[];
-  criteria: Criterion[];
-  rubric: string;
-  lengthSeconds: number;
-  tone: Tone;
+/** A microphone recording or generated narration. */
+export type TakeSource = "voice" | "tts";
+
+export type TakeStatus = "empty" | "recorded" | "too-long" | "too-short";
+
+/** One scene's narration. */
+export type SceneTake = {
+  /** The script this audio was recorded against; edits require a new take. */
+  spokenLine?: string;
+  blob: Blob | null;
+  durationSeconds: number | null;
+  source: TakeSource;
+  status: TakeStatus;
+  wpm: number | null;
+  wpmOutOfRange: boolean;
 };

@@ -4,6 +4,8 @@ Turn your project’s story and screen recording into a professional demo, blend
 
 No signup or server project database. One current clip, browser-local saving, and a finished video download.
 
+**Try a sample demo** opens Launchpad, a real 91-second recording with a prepared descriptive script and eight voice takes. It opens separately, makes no analysis/synthesis requests just to load, and never reads or replaces your saved project. Sample changes reset on reload. Open Record mode to hear the prepared voices or create the finished video.
+
 ## What it does
 
 1. **Record or upload a clip.** Up to three minutes of footage, picture only. Pause and resume while recording; the paused stretch is cut. A clip you already have can be dropped in instead.

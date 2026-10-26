@@ -1,80 +1,33 @@
 import {
   GeminiError,
   SCRIPT_FALLBACK_MODEL,
-  SCRIPT_MODEL,
   generateJson,
-  rewriteSchema,
-  scriptSchema,
+  rewriteSchemaFor,
 } from "@/lib/gemini";
-import { normalizeCriteria } from "@/lib/criteria";
-import {
-  rewriteInstruction,
-  scriptInstruction,
-  scriptSystem,
-  type RewriteCriterion,
-  type ScriptShot,
-} from "@/lib/prompts";
-import type { ScriptResult, ScriptScene, Tone } from "@/lib/types";
+import { DEFAULT_PRESET, isNarrator, isPreset, narratorFor } from "@/lib/presets";
+import { rewriteInstruction, videoSystem, type RewriteCriterion } from "@/lib/prompts";
+import type { Preset } from "@/lib/types";
+import { normalizeBrief } from "@/lib/projectBrief";
+import { normalizeContextAnswers } from "@/lib/storyContext";
+import { narrationBudget, wordCount } from "@/lib/narrationBudget";
 
 export const runtime = "nodejs";
 
-type RawScene = {
-  shotId: string;
-  actionId: string;
-  spokenLine: string;
-  caption: string;
-  covers: string[];
-};
-type RawResult = { criteria: { id: string; label: string; source: string }[]; scenes: RawScene[] };
-
 type RewriteBody = {
+  brief?: unknown;
+  contextAnswers?: unknown;
+  beforeLine?: string;
+  afterLine?: string;
   description?: string;
   note?: string;
+  caption?: string;
   previousLine?: string;
   seconds?: number;
   rubric?: string;
-  tone?: Tone;
+  preset?: Preset;
+  narrator?: string;
   criteria?: { id?: string; label?: string }[];
 };
-
-const TONES: Tone[] = ["professional", "energetic", "storytelling"];
-const MAX_SHOTS = 18;
-
-function sanitize(raw: RawResult, shotIds: Set<string>): ScriptResult {
-  const { criteria, idFor } = normalizeCriteria(raw.criteria);
-
-  const scenes: ScriptScene[] = [];
-  for (const scene of raw.scenes ?? []) {
-    const shotId = typeof scene.shotId === "string" ? scene.shotId : "";
-    const spokenLine = typeof scene.spokenLine === "string" ? scene.spokenLine.trim() : "";
-    if (!shotIds.has(shotId) || !spokenLine) continue;
-
-    const covers = Array.isArray(scene.covers)
-      ? scene.covers
-          .map((ref) => idFor(String(ref)))
-          .filter((id): id is string => Boolean(id))
-      : [];
-
-    scenes.push({
-      shotId,
-      actionId: typeof scene.actionId === "string" && scene.actionId !== "(whole screen)"
-        ? scene.actionId
-        : "",
-      spokenLine,
-      caption: typeof scene.caption === "string" ? scene.caption.trim() : "",
-      covers: [...new Set(covers)],
-    });
-  }
-
-  if (scenes.length === 0) {
-    throw new GeminiError(
-      "failed",
-      "Gemini didn't write any scenes. Your screenshots are still here — try again.",
-    );
-  }
-
-  return { criteria, scenes };
-}
 
 function failure(error: unknown): Response {
   if (error instanceof GeminiError) {
@@ -83,7 +36,7 @@ function failure(error: unknown): Response {
   }
   console.error("/api/script failed", error);
   return Response.json(
-    { error: "Something went wrong writing the script. Try again." },
+    { error: "Something went wrong rewriting the scene. Try again." },
     { status: 500 },
   );
 }
@@ -93,17 +46,31 @@ function failure(error: unknown): Response {
  * scenes in a row, and the good model's free quota is 20 requests a day — the
  * full script keeps that budget, single-scene corrections do not.
  */
-async function rewriteOne(rewrite: RewriteBody): Promise<Response> {
+export async function POST(request: Request) {
+  let body: { rewrite?: RewriteBody };
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "That request didn't arrive in one piece." }, { status: 400 });
+  }
+
+  const rewrite = body.rewrite;
+  if (!rewrite || typeof rewrite !== "object") {
+    return Response.json({ error: "No scene to rewrite." }, { status: 400 });
+  }
+
   const description =
     typeof rewrite.description === "string"
       ? rewrite.description.trim().slice(0, 600)
       : "";
   const note =
     typeof rewrite.note === "string" ? rewrite.note.trim().slice(0, 1200) : "";
+  const caption =
+    typeof rewrite.caption === "string" ? rewrite.caption.trim().slice(0, 200) : "";
 
-  if (!description && !note) {
+  if (!description && !note && !caption) {
     return Response.json(
-      { error: "There's nothing about that screen to rewrite from." },
+      { error: "Add a note about this scene, then rewrite it." },
       { status: 400 },
     );
   }
@@ -125,18 +92,23 @@ async function rewriteOne(rewrite: RewriteBody): Promise<Response> {
       label: (criterion.label as string).trim().slice(0, 80),
     }));
 
-  const tone = TONES.includes(rewrite.tone as Tone)
-    ? (rewrite.tone as Tone)
-    : "professional";
+  const preset = isPreset(rewrite.preset) ? rewrite.preset : DEFAULT_PRESET;
+  const narrator = isNarrator(rewrite.narrator)
+    ? rewrite.narrator
+    : narratorFor(preset);
   const seconds = Math.min(
-    60,
-    Math.max(3, Math.round(Number(rewrite.seconds) || 12)),
+    180,
+    Math.max(0.1, Number(rewrite.seconds) || 12),
   );
   const rubric =
     typeof rewrite.rubric === "string" ? rewrite.rubric.slice(0, 6000) : "";
 
   try {
-    const raw = await generateJson<{
+    let raw: { spokenLine?: string; caption?: string; covers?: string[] } = {};
+    const budget = narrationBudget(seconds);
+    let correction = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+    raw = await generateJson<{
       spokenLine?: string;
       caption?: string;
       covers?: string[];
@@ -146,6 +118,7 @@ async function rewriteOne(rewrite: RewriteBody): Promise<Response> {
           text: rewriteInstruction({
             description,
             note,
+            caption,
             previousLine:
               typeof rewrite.previousLine === "string"
                 ? rewrite.previousLine.trim().slice(0, 800)
@@ -153,22 +126,29 @@ async function rewriteOne(rewrite: RewriteBody): Promise<Response> {
             seconds,
             rubric,
             criteria,
-          }),
+            narrator,
+            brief: normalizeBrief(rewrite.brief),
+            contextAnswers: normalizeContextAnswers(rewrite.contextAnswers),
+            beforeLine: typeof rewrite.beforeLine === "string" ? rewrite.beforeLine.slice(0, 1500) : "",
+            afterLine: typeof rewrite.afterLine === "string" ? rewrite.afterLine.slice(0, 1500) : "",
+          }) + correction,
         },
       ],
-      schema: rewriteSchema,
-      systemInstruction: scriptSystem(tone),
+      schema: rewriteSchemaFor(seconds),
+      systemInstruction: videoSystem(preset, narrator),
       temperature: 0.6,
       models: [SCRIPT_FALLBACK_MODEL],
     });
+    const count = wordCount(typeof raw.spokenLine === "string" ? raw.spokenLine : "");
+    if (count >= budget.minWords && count <= budget.maxWords) break;
+    if (attempt === 2) throw new GeminiError("failed", "That explanation still does not fit the scene. Your previous line is kept. Add a more specific rewrite note or use Expand explanations for follow-up questions.");
+    correction = `\nThe last line had ${count} words. Write ${budget.minWords}–${budget.maxWords} grounded words for this ${seconds}-second scene. Explain the meaning and purpose, without filler or invented facts.`;
+    }
 
     const spokenLine =
       typeof raw.spokenLine === "string" ? raw.spokenLine.trim() : "";
-    if (!spokenLine) {
-      throw new GeminiError(
-        "failed",
-        "Gemini didn't rewrite that scene. Try again.",
-      );
+    if (!spokenLine && seconds >= 3) {
+      throw new GeminiError("failed", "Gemini didn't rewrite that scene. Try again.");
     }
 
     const allowed = new Set(criteria.map((criterion) => criterion.id));
@@ -183,59 +163,6 @@ async function rewriteOne(rewrite: RewriteBody): Promise<Response> {
       caption: typeof raw.caption === "string" ? raw.caption.trim() : "",
       covers: [...new Set(covers)],
     });
-  } catch (error) {
-    return failure(error);
-  }
-}
-
-export async function POST(request: Request) {
-  let body: {
-    shots?: ScriptShot[];
-    rubric?: string;
-    tone?: Tone;
-    minutes?: number;
-    rewrite?: RewriteBody;
-  };
-
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "That request didn't arrive in one piece." }, { status: 400 });
-  }
-
-  if (body.rewrite && typeof body.rewrite === "object") {
-    return rewriteOne(body.rewrite);
-  }
-
-  const shots = (Array.isArray(body.shots) ? body.shots : [])
-    .filter((shot) => shot && typeof shot.shotId === "string" && shot.shotId)
-    .slice(0, MAX_SHOTS)
-    .map((shot) => ({
-      shotId: shot.shotId,
-      actionId: typeof shot.actionId === "string" ? shot.actionId : "",
-      description: typeof shot.description === "string" ? shot.description.slice(0, 600) : "",
-      note: typeof shot.note === "string" ? shot.note.slice(0, 1200) : "",
-    }));
-
-  if (shots.length === 0) {
-    return Response.json({ error: "No screenshots to write from." }, { status: 400 });
-  }
-
-  const tone = TONES.includes(body.tone as Tone) ? (body.tone as Tone) : "professional";
-  const minutes = Math.min(3, Math.max(1, Math.round(Number(body.minutes) || 2)));
-  const rubric = typeof body.rubric === "string" ? body.rubric.slice(0, 6000) : "";
-  const seconds = minutes * 60;
-
-  try {
-    const raw = await generateJson<RawResult>({
-      parts: [{ text: scriptInstruction({ shots, rubric, tone, seconds }) }],
-      schema: scriptSchema,
-      systemInstruction: scriptSystem(tone),
-      temperature: 0.6,
-      models: [SCRIPT_MODEL, SCRIPT_FALLBACK_MODEL],
-    });
-
-    return Response.json(sanitize(raw, new Set(shots.map((shot) => shot.shotId))));
   } catch (error) {
     return failure(error);
   }

@@ -9,6 +9,7 @@ export type FloatingBar = {
 
 export type RecordingBar = {
   window: Window;
+  setReady: () => void;
   setClock: (elapsedSeconds: number, paused: boolean) => void;
   close: () => void;
 };
@@ -105,21 +106,27 @@ export async function openFloatingBar({
 }
 
 type RecordingOptions = {
+  onStart: () => void;
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  onCancel: () => void;
   onClose: () => void;
 };
 
 /**
  * Always-on-top controls for the take, so the project window can stay focused
- * and the switch back to DemoScript is never part of the file. Closing this
- * window leaves the recording running; the in-page strip can still stop it.
+ * and the switch back to DemoScript is never part of the file. It opens armed,
+ * not recording: the user switches to their project and presses Start.
+ * Closing this window leaves the take armed or recording; the in-page strip
+ * still has the controls.
  */
 export async function openRecordingBar({
+  onStart,
   onPause,
   onResume,
   onStop,
+  onCancel,
   onClose,
 }: RecordingOptions): Promise<RecordingBar> {
   const api = (window as WindowWithPictureInPicture).documentPictureInPicture;
@@ -140,6 +147,7 @@ export async function openRecordingBar({
     .row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5F6068; }
     .dot { width: 6px; height: 6px; border-radius: 999px; background: #B4453C; animation: pulse 1.6s ease-in-out infinite; }
+    .dot.ready { background: #2C4A52; animation: none; }
     .dot.paused { background: #8B8B92; animation: none; }
     .count { font-size: 11px; color: #8B8B92; font-variant-numeric: tabular-nums; }
     .note { min-height: 14px; margin-top: 3px; font-size: 11px; color: #8B8B92; }
@@ -157,7 +165,7 @@ export async function openRecordingBar({
   dot.className = "dot";
 
   const labelText = pipWindow.document.createElement("span");
-  labelText.textContent = "Recording your screen";
+  labelText.textContent = "Ready to record";
 
   const label = pipWindow.document.createElement("p");
   label.className = "label";
@@ -173,46 +181,76 @@ export async function openRecordingBar({
   const note = pipWindow.document.createElement("p");
   note.className = "note";
 
+  let ready = true;
   let paused = false;
 
   const toggle = pipWindow.document.createElement("button");
   toggle.className = "toggle";
   toggle.type = "button";
-  toggle.textContent = "Pause";
+  toggle.textContent = "Start recording";
   toggle.addEventListener("click", () => {
+    if (ready) {
+      ready = false;
+      paused = false;
+      renderLive(0);
+      onStart();
+      return;
+    }
     if (paused) onResume();
     else onPause();
   });
 
-  const stop = pipWindow.document.createElement("button");
-  stop.className = "stop";
-  stop.type = "button";
-  stop.textContent = "Stop recording";
-  stop.addEventListener("click", onStop);
+  const secondary = pipWindow.document.createElement("button");
+  secondary.className = "stop";
+  secondary.type = "button";
+  secondary.textContent = "Cancel";
+  secondary.addEventListener("click", () => {
+    if (ready) onCancel();
+    else onStop();
+  });
 
   const actions = pipWindow.document.createElement("div");
   actions.className = "actions";
-  actions.append(toggle, stop);
+  actions.append(toggle, secondary);
 
   const body = pipWindow.document.createElement("div");
   body.append(topRow, note, actions);
   pipWindow.document.body.append(body);
 
+  function renderReady() {
+    ready = true;
+    paused = false;
+    labelText.textContent = "Ready to record";
+    count.textContent = `0:00 of ${formatClock(MAX_RECORDING_SECONDS)}`;
+    dot.className = "dot ready";
+    toggle.textContent = "Start recording";
+    secondary.textContent = "Cancel";
+    note.textContent = "Switch to your project, then press Start.";
+  }
+
+  function renderLive(elapsedSeconds: number) {
+    ready = false;
+    count.textContent = `${formatClock(elapsedSeconds)} of ${formatClock(MAX_RECORDING_SECONDS)}`;
+    labelText.textContent = paused
+      ? "Recording paused"
+      : "Recording your screen";
+    dot.className = paused ? "dot paused" : "dot";
+    toggle.textContent = paused ? "Resume" : "Pause";
+    secondary.textContent = "Stop recording";
+    note.textContent = paused ? "Paused — this time is cut from the clip." : "";
+  }
+
+  renderReady();
   pipWindow.addEventListener("pagehide", () => onClose());
 
   return {
     window: pipWindow,
+    setReady() {
+      renderReady();
+    },
     setClock(elapsedSeconds, nextPaused) {
       paused = nextPaused;
-      count.textContent = `${formatClock(elapsedSeconds)} of ${formatClock(MAX_RECORDING_SECONDS)}`;
-      labelText.textContent = paused
-        ? "Recording paused"
-        : "Recording your screen";
-      dot.className = paused ? "dot paused" : "dot";
-      toggle.textContent = paused ? "Resume" : "Pause";
-      note.textContent = paused
-        ? "Paused — this time is cut from the clip."
-        : "";
+      renderLive(elapsedSeconds);
     },
     close() {
       if (!pipWindow.closed) pipWindow.close();

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { formatClock } from "@/lib/timing";
-import type { Scene, ScenePatch, Shot } from "@/lib/types";
+import type { Scene, ScenePatch } from "@/lib/types";
+import { lineFitsScene } from "@/lib/sceneTimeline";
+import { narrationBudget, wordCount } from "@/lib/narrationBudget";
 
 export default function SceneCard({
   scene,
-  shot,
+  poster,
   index,
   covers = [],
   active = false,
@@ -19,7 +21,7 @@ export default function SceneCard({
   onDelete,
 }: {
   scene: Scene;
-  shot?: Shot;
+  poster?: string;
   index: number;
   covers?: string[];
   active?: boolean;
@@ -33,6 +35,8 @@ export default function SceneCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const budget = narrationBudget(scene.seconds);
+  const words = wordCount(scene.spokenLine);
 
   return (
     <article
@@ -41,12 +45,11 @@ export default function SceneCard({
       }`}
     >
       <div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {shot?.dataUrl ? (
+        {poster ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={shot.dataUrl}
-            alt={shot.note || "Screenshot for this scene"}
+            src={poster}
+            alt="Frame from your recording"
             className="h-[62px] w-[92px] border border-hairline object-cover"
           />
         ) : (
@@ -82,7 +85,7 @@ export default function SceneCard({
             />
           ) : (
             <p className="font-script text-[17px] leading-[1.75] text-ink">
-              {scene.spokenLine}
+              {scene.spokenLine || "Silent visual transition — no narration needed."}
             </p>
           )}
         </div>
@@ -100,6 +103,10 @@ export default function SceneCard({
           )}
         </div>
 
+        {!lineFitsScene(scene) ? <p className="mt-2 pl-7 text-[11.5px] text-flag">This line may run past the scene. Shorten it to keep speech with the footage.</p> : null}
+        <p className="mt-2 pl-7 text-[11px] tabular-nums text-muted">Scene {formatClock(scene.seconds)} · {words} words{budget.maxWords ? ` · Aim ${budget.minWords}–${budget.maxWords} words` : " · Silent transition"}</p>
+        {budget.minWords > words ? <p className="mt-1 pl-7 text-[11.5px] text-flag">This passage is short for the scene. Use Expand explanations to develop it.</p> : null}
+        {scene.visualDescription ? <p className="mt-2 pl-7 text-[11.5px] leading-relaxed text-muted">On screen: {scene.visualDescription}</p> : null}
         {covers.length > 0 ? (
           <p className="mt-1.5 pl-7 text-[11px] text-ok">
             Proves: {covers.join(" · ")}
@@ -112,13 +119,13 @@ export default function SceneCard({
           </p>
         ) : null}
 
-        {editing && scene.startSeconds == null ? (
+        {editing ? (
           <div className="mt-3 pl-7">
             <label
               htmlFor={`description-${scene.id}`}
               className="text-[10.5px] uppercase tracking-[0.08em] text-faint"
             >
-              Built from
+              Note for the rewrite
             </label>
             <textarea
               id={`description-${scene.id}`}
@@ -127,14 +134,14 @@ export default function SceneCard({
                 onUpdate?.({ description: event.target.value })
               }
               rows={2}
-              placeholder="What does this screen show?"
+              placeholder="What should this scene say instead?"
               className="mt-1.5 w-full resize-y border border-hairline bg-white/60 px-2.5 py-1.5 text-[12.5px] leading-relaxed text-ink outline-none focus:border-accent"
             />
             <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <button
                 type="button"
                 onClick={onRewrite}
-                disabled={rewriting || !scene.description.trim()}
+                disabled={rewriting || (!scene.description.trim() && !scene.caption.trim())}
                 className="text-[11.5px] text-accent underline decoration-hairline underline-offset-2 hover:decoration-accent disabled:text-faint disabled:no-underline"
               >
                 {rewriting ? "Rewriting…" : "Rewrite this scene"}
@@ -161,7 +168,7 @@ export default function SceneCard({
 
             {confirmDelete ? (
               <span className="flex items-baseline gap-2 text-[11.5px] text-muted">
-                Remove this scene?
+                Remove this scene and its recorded take? The video keeps its original timing.
                 <button
                   type="button"
                   onClick={onDelete}

@@ -17,7 +17,7 @@ const serif = Newsreader({
 export const metadata: Metadata = {
   title: "DemoScript",
   description:
-    "Turn your screenshots into a demo script, with a checklist showing which criteria each scene proves.",
+    "Turn a screen recording into a demo script, with a checklist showing which criteria each scene proves.",
 };
 
 export default function RootLayout({

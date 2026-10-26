@@ -7,6 +7,7 @@ import {
   sceneIndexAt,
 } from "@/lib/timing";
 import type { Scene } from "@/lib/types";
+import { sceneAtVideoTime } from "@/lib/sceneTimeline";
 
 const quiet =
   "text-[12px] text-muted underline decoration-hairline underline-offset-4 hover:text-ink hover:decoration-accent";
@@ -21,10 +22,12 @@ export default function RehearsalPanel({
   scenes,
   lengthSeconds,
   onExit,
+  clipUrl,
 }: {
   scenes: Scene[];
   lengthSeconds: number;
   onExit: () => void;
+  clipUrl?: string | null;
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
@@ -33,24 +36,25 @@ export default function RehearsalPanel({
   const baseRef = useRef(0);
   const segmentStartRef = useRef(0);
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const target = Math.max(1, lengthSeconds);
   const durations = scenes.map((scene) => scene.seconds);
-  const activeIndex = sceneIndexAt(durations, elapsed);
+  const activeIndex = clipUrl ? sceneAtVideoTime(scenes, elapsed) : sceneIndexAt(durations, elapsed);
   const activeId = activeIndex >= 0 ? scenes[activeIndex]?.id : null;
   const remaining = Math.max(0, target - elapsed);
   const over = elapsed > target;
   const percent = Math.min(100, (elapsed / target) * 100);
 
   useEffect(() => {
-    if (!running) return;
+    if (!running || clipUrl) return;
     const timer = window.setInterval(() => {
       setElapsed(
         baseRef.current + (performance.now() - segmentStartRef.current) / 1000,
       );
     }, 250);
     return () => window.clearInterval(timer);
-  }, [running]);
+  }, [running, clipUrl]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -65,10 +69,12 @@ export default function RehearsalPanel({
     setElapsed(0);
     setSummary(null);
     setRunning(true);
+    if (videoRef.current) { videoRef.current.currentTime = 0; void videoRef.current.play().catch(() => setRunning(false)); }
   }
 
   function pause() {
     if (!running) return;
+    if (videoRef.current) { videoRef.current.pause(); setRunning(false); return; }
     const value =
       baseRef.current + (performance.now() - segmentStartRef.current) / 1000;
     baseRef.current = value;
@@ -77,19 +83,22 @@ export default function RehearsalPanel({
   }
 
   function resume() {
+    if (videoRef.current) { void videoRef.current.play().catch(() => setRunning(false)); return; }
     segmentStartRef.current = performance.now();
     setRunning(true);
   }
 
   function stop() {
-    let value = baseRef.current;
-    if (running) {
+    let value = videoRef.current?.currentTime ?? baseRef.current;
+    videoRef.current?.pause();
+    if (running && !videoRef.current) {
       value =
         baseRef.current + (performance.now() - segmentStartRef.current) / 1000;
       baseRef.current = value;
       setRunning(false);
     }
     setElapsed(value);
+    setRunning(false);
     setSummary(rehearsalSummary(value, target));
   }
 
@@ -97,11 +106,18 @@ export default function RehearsalPanel({
 
   return (
     <div>
+      {clipUrl ? <video ref={videoRef} src={clipUrl} controls muted playsInline className="mb-5 w-full bg-ink"
+        onTimeUpdate={(event) => setElapsed(event.currentTarget.currentTime)}
+        onSeeking={(event) => { setElapsed(event.currentTarget.currentTime); setSummary(null); }}
+        onPlay={() => { setRunning(true); setSummary(null); }}
+        onPause={() => setRunning(false)}
+        onEnded={() => { setRunning(false); setSummary(rehearsalSummary(target, target)); }}
+      /> : null}
       <div className="sticky top-0 z-10 -mx-1 bg-paper/95 px-1 pb-4 pt-1 backdrop-blur-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
           <div>
             <p className="text-[10.5px] uppercase tracking-[0.08em] text-faint">
-              Rehearsal · scene {Math.max(1, activeIndex + 1)} of {scenes.length}
+              {activeIndex < 0 ? "Rehearsal · quiet gap" : `Rehearsal · scene ${activeIndex + 1} of ${scenes.length}`}
             </p>
             <p
               className={`mt-1.5 font-script text-[34px] leading-none tabular-nums ${

@@ -1,14 +1,35 @@
-export const WORDS_PER_SECOND = 2.5;
+import type { Scene, SceneTake, TakeSource } from "@/lib/types";
 
-/** Rough spoken length of a line. Deliberately simple: words in, seconds out. */
-export function secondsFor(line: string): number {
+export const WPM_RATIOS: Record<TakeSource, number> = {
+  voice: 160,
+  tts: 160,
+};
+/** Approximate spoken length of a line, calibrated by voice pace. */
+export function secondsFor(line: string, source: TakeSource): number {
   const words = line.trim().split(/\s+/).filter(Boolean).length;
-  return Math.round(words / WORDS_PER_SECOND);
+  const wpm = WPM_RATIOS[source];
+  return Math.round((words / wpm) * 60);
+}/** Dev-only: log per-scene timing data to console. Enable with process.env.NODE_ENV === "development" */
+export function debugSceneTiming(scenes: Scene[], takes: Map<string, SceneTake> | null, clipSeconds: number): void {
+  if (typeof window === "undefined" || process.env.NODE_ENV !== "development") return;
+  console.log("\n=== DemoScript Scene Timing Debug ===");
+  scenes.forEach((scene, i) => {
+    const take = takes?.get(scene.id);
+    const nextScene = scenes[i + 1];
+    const slotSeconds = scene.startSeconds != null && nextScene?.startSeconds != null
+      ? nextScene.startSeconds - scene.startSeconds
+      : clipSeconds - (scene.startSeconds ?? 0);
+    const wordCount = (scene.spokenLine?.trim().split(/\s+/).filter(Boolean).length ?? 0);
+    const estimatedSeconds = secondsFor(scene.spokenLine ?? "", take?.source ?? "voice");
+    const actualSeconds = take?.durationSeconds ?? 0;
+    console.log(
+      `Scene ${i + 1} [${scene.id}]:`,
+      `slot=${slotSeconds}s words=${wordCount} est=${estimatedSeconds}s act=${actualSeconds}s`,
+    );
+  });
+  console.log("========================================\n");
 }
 
-export function totalSeconds(lines: string[]): number {
-  return lines.reduce((sum, line) => sum + secondsFor(line), 0);
-}
 
 /**
  * Which scene should be on screen at `elapsed`, given each scene's spoken
@@ -35,7 +56,7 @@ export function rehearsalSummary(elapsed: number, planned: number): string {
     return `You stopped at ${formatClock(read)} of ${formatClock(whole)} — ${formatClock(whole - read)} left.`;
   }
   if (read === whole) {
-    return `You read the whole ${formatClock(whole)} — right at your limit.`;
+    return `You read the whole script — ${formatClock(whole)}.`;
   }
   return `You read ${formatClock(read)} against ${formatClock(whole)} — ${formatClock(read - whole)} over.`;
 }

@@ -2,6 +2,7 @@
 
 import { formatClock } from "@/lib/timing";
 import type { Scene } from "@/lib/types";
+import { sceneAtVideoTime } from "@/lib/sceneTimeline";
 
 type Props = {
   src: string;
@@ -11,16 +12,6 @@ type Props = {
   onActiveScene: (sceneId: string | null) => void;
   videoRef: React.RefObject<HTMLVideoElement | null>;
 };
-
-function sceneAtTime(scenes: Scene[], time: number): string | null {
-  let found: string | null = null;
-  for (const scene of scenes) {
-    const start = scene.startSeconds ?? 0;
-    if (start <= time + 0.25) found = scene.id;
-    else break;
-  }
-  return found;
-}
 
 export default function VideoPlayer({
   src,
@@ -43,7 +34,7 @@ export default function VideoPlayer({
         controls
         preload="metadata"
         onTimeUpdate={(event) => {
-          const next = sceneAtTime(scenes, event.currentTarget.currentTime);
+          const next = scenes[sceneAtVideoTime(scenes, event.currentTarget.currentTime)]?.id ?? null;
           if (next !== activeSceneId) onActiveScene(next);
         }}
         className="block w-full bg-ink"

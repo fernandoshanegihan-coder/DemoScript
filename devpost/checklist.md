@@ -168,11 +168,21 @@ These are retrospective records of implemented behavior, not a claim that 5-buil
   Learner check: Read the current journey and remaining checklist items; point out any mismatch with the app you are using.
   Commit: Synchronize current project docs and 5-build progress (current documentation checkpoint)
 
+- [ ] **16. Visitors can try the real Launchpad sample**
+  Becomes usable: A real 91-second recording opens in a separate sample tab with eight prepared scenes, project answers and voice takes. Visitors can rehearse and export it without waiting for analysis or risking their saved project.
+  Why now: The learner explicitly requested a built-in visitor example and supplied the Launchpad recording, revising the earlier sample exclusion.
+  PRD ref: prd.md > Built-in Launchpad Example
+  Spec ref: spec.md > Built-in Sample; spec.md > Data Model and Persistence
+  Build: lib/sampleDemo.ts, lib/loadSampleDemo.ts, sample-query initialization in app/page.tsx, sample links, public/sample media and defensive sessionStore guards. Prepare narration once with the authoring script.
+  Verify (mechanical): Check every bundled passage/voice duration and script match; ensure sample persistence cannot touch saved work; run regression tests, type checking and production build; exercise sample loading, playback/export and saved-session isolation in the browser.
+  Learner check: Select Try a sample demo, read the Launchpad scenes, play a take in Record mode and create the finished video. Return to your own project and confirm it is unchanged.
+  Commit: Add an isolated Launchpad sample with prepared narration
+
 ## Recorded Verification
 
 Latest implementation verification, 26 October 2026:
 
-- [x] npm test: **36 passing regression tests**.
+- [x] npm test: **39 passing regression tests**, including bundled narration and sample-session isolation.
 - [x] TypeScript validation passed in the final production build.
 - [x] npm run build -- --webpack passed after the temporary acceptance route was removed.
 - [x] Final localhost:3001 app returned HTTP 200; the temporary /voice-check page returned 404.
@@ -183,6 +193,8 @@ Latest implementation verification, 26 October 2026:
 - [x] Narration tests cover SSML escaping, WAV duration/corruption, pace adjustment, refusal to crop an overlong voice and safe authentication errors.
 - [x] Export/timeline regression tests cover fixed timestamps, deleted gaps, stale/missing takes, overflow, overlap and cancellation before touching sources.
 - [x] Narration endpoint rejected invalid scene/voice input and an explicit foreign origin.
+- [x] Launchpad sample opened separately with all eight prepared takes; voice playback and combined MP4 creation succeeded in the browser. The final preview had sound enabled and was approximately 91 seconds long.
+- [x] Sample storage regression confirmed load/save/clear never touch IndexedDB in preview mode. Bundled WAV lengths and exact prepared text match the scene manifest; the full mix fits browser playback duration.
 
 Prior synthetic browser export checks also decoded audible tones at the expected offsets, confirmed silent gaps and source-audio removal, and exercised active export cancellation. These checks used generated fixtures, not the learner's personal footage.
 
@@ -247,3 +259,5 @@ No new feature expansion is required merely to finish the current proof of conce
 - Preserved retrospective implementation evidence without asserting that earlier work followed 5-build or had a separate commit for every slice. The reusable skill itself was not edited.
 - Resumed at final verification and learner review. All 36 regression tests and TypeScript checks passed again, and the running app returned HTTP 200 on port 3001. No paid-service requests were needed for this progress update.
 - Retained incomplete learner acceptance, source-checkpoint review and learning activities as open work. Prior satisfaction with script direction does not certify the later Azure/export path.
+- Added the learner-supplied Launchpad recording as one ready-made visitor example after an explicit request. It opens as a non-persistent sample session, with prepared words and voices rather than new AI calls, and does not revive screenshot input or a project library.
+- The sample export check revealed MP4 track offsets made its reported end differ from browser playback. The sample uses the measured browser duration and a newly fitted final voice; the successful browser export and regression mix check cover that boundary.

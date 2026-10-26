@@ -28,9 +28,31 @@ body {
   outline-offset: 2px;
 }
 
+@keyframes progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+/* The bar for work the app cannot measure: it moves, but claims no amount. */
+.progress-indeterminate {
+  animation: progress-slide 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* A sliding bar would freeze off-screen under the rule above. */
+  .progress-indeterminate {
+    animation: none !important;
+    transform: none !important;
+    width: 100% !important;
+    opacity: 0.35;
   }
 }

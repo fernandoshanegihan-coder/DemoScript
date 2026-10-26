@@ -1,6 +1,6 @@
 "use client";
 
-export type Mode = "script" | "rehearse";
+export type Mode = "script" | "rehearse" | "record";
 
 /**
  * A quiet row above the storyboard. It changes what the right column is doing
@@ -35,6 +35,7 @@ export default function ModeStrip({
     <nav aria-label="Mode" className="mb-5 flex items-baseline gap-5">
       {item("script", "Script")}
       {item("rehearse", "Rehearse")}
+      {item("record", "Record")}
     </nav>
   );
 }
