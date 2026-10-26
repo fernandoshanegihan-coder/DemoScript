@@ -8,7 +8,7 @@ updated: 2026-10-26
 
 Build mode: fast mode.
 
-5-build position: implementation recorded; final hands-on review, source-checkpoint audit and learning wrap-up pending. Resume those items rather than rebuilding checked slices.
+5-build position: implementation and current source checkpoint recorded; final hands-on review and learning wrap-up pending. Resume those items rather than rebuilding checked slices.
 
 This is the current implementation checklist. Checked items mean the implementation and evidence listed below exist; they do not certify every browser, every recording or the learner's final submission.
 
@@ -16,7 +16,7 @@ Earlier slices and abandoned designs remain in [the archived build history](arch
 
 ## Slices
 
-These are retrospective records of implemented behavior, not a claim that 5-build was invoked for each earlier change. Mechanical evidence is distinguished from learner checks. Historical per-slice commits are not reconstructed; the outstanding source-checkpoint audit is tracked under Final Review.
+These are retrospective records of implemented behavior, not a claim that 5-build was invoked for each earlier change. Mechanical evidence is distinguished from learner checks. Historical per-slice commits are not reconstructed; the verified current-app checkpoint is recorded under Final Review.
 
 - [x] **1. One recording input and a working page**
   Becomes usable: Capture or upload one clip; warm, light two-column UI; poster, player and recording controls; presets and I/We. Screenshot input and cached sample project removed.
@@ -168,7 +168,7 @@ These are retrospective records of implemented behavior, not a claim that 5-buil
   Learner check: Read the current journey and remaining checklist items; point out any mismatch with the app you are using.
   Commit: Synchronize current project docs and 5-build progress (current documentation checkpoint)
 
-- [ ] **16. Visitors can try the real Launchpad sample**
+- [x] **16. Visitors can try the real Launchpad sample**
   Becomes usable: A real 91-second recording opens in a separate sample tab with eight prepared scenes, project answers and voice takes. Visitors can rehearse and export it without waiting for analysis or risking their saved project.
   Why now: The learner explicitly requested a built-in visitor example and supplied the Launchpad recording, revising the earlier sample exclusion.
   PRD ref: prd.md > Built-in Launchpad Example
@@ -176,7 +176,7 @@ These are retrospective records of implemented behavior, not a claim that 5-buil
   Build: lib/sampleDemo.ts, lib/loadSampleDemo.ts, sample-query initialization in app/page.tsx, sample links, public/sample media and defensive sessionStore guards. Prepare narration once with the authoring script.
   Verify (mechanical): Check every bundled passage/voice duration and script match; ensure sample persistence cannot touch saved work; run regression tests, type checking and production build; exercise sample loading, playback/export and saved-session isolation in the browser.
   Learner check: Select Try a sample demo, read the Launchpad scenes, play a take in Record mode and create the finished video. Return to your own project and confirm it is unchanged.
-  Commit: Add an isolated Launchpad sample with prepared narration
+  Commit: 6bfab53 — Add isolated Launchpad sample and checkpoint the working app. Includes the earlier uncommitted app dependencies needed for a reproducible current version.
 
 ## Recorded Verification
 
@@ -215,7 +215,7 @@ The learner expressed satisfaction with the script direction before the silent-v
 
 ## Final Review
 
-- [ ] Review and checkpoint the currently uncommitted app changes before declaring 5-build complete. The current progress update checkpoints only project documentation; it does not include or retrospectively commit the app implementation.
+- [x] Reviewed the current app/config/test changes and checkpointed the working app with the Launchpad sample in 6bfab53. Regression tests, type/build checks and browser sample/export checks passed. Saved keys and the private learner profile were excluded; the separate Launchpad source folder was left untouched. This is a current consolidated checkpoint, not reconstructed historical slice commits.
 - [ ] Final review complete — feedback resolved and learner confirms ready to ship.
 
 Known limitations to review: browser codec/device differences; AI factual/story quality; browser-local storage; provider quotas/latency; process-local Azure allowance; deployment body-size and request-duration limits.
@@ -261,3 +261,4 @@ No new feature expansion is required merely to finish the current proof of conce
 - Retained incomplete learner acceptance, source-checkpoint review and learning activities as open work. Prior satisfaction with script direction does not certify the later Azure/export path.
 - Added the learner-supplied Launchpad recording as one ready-made visitor example after an explicit request. It opens as a non-persistent sample session, with prepared words and voices rather than new AI calls, and does not revive screenshot input or a project library.
 - The sample export check revealed MP4 track offsets made its reported end differ from browser playback. The sample uses the measured browser duration and a newly fitted final voice; the successful browser export and regression mix check cover that boundary.
+- Saved the verified current source and sample as one consolidated checkpoint after reviewing the accumulated implementation changes. Final learner acceptance and learning wrap-up remain open.
