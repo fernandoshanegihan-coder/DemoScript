@@ -158,4 +158,4 @@ Earlier requirements for screenshots, a target-length stepper, Gemini/Kokoro/Ope
 
 ## Acceptance Still Required
 
-Automated and synthetic checks are recorded in the checklist. Before calling the learner's submission ready, review the full workflow on their own recording and play the downloaded file in a normal player. Confirm story quality, scene alignment, voice quality and recovery on the intended browser. Deployment, public repository and submission materials are not assumed complete.
+Automated and synthetic checks are recorded in the checklist. The learner confirmed the final video review with "all done" and no further fix request. This records their acceptance, without claiming the agent observed every device or recovery branch. Deployment, public repository, accessible demo-video links and submission materials are not assumed complete.

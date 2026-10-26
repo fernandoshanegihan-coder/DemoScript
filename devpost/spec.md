@@ -209,4 +209,4 @@ Optional live checks:
 - scripts/video-export-check-server.cjs and its HTML fixture: generated picture/tones, track presence, audible intervals, silent gap, source-audio removal and cancellation.
 - scripts/narration-browser.cjs: browser regression harness; its latest wording is updated, but the full harness was not rerun during the Azure change.
 
-Temporary acceptance routes have been removed. No production deployment, all-device guarantee or final real-recording acceptance is claimed.
+Temporary acceptance routes have been removed. The learner subsequently confirmed final acceptance; this is user-reported review, separate from the agent's synthetic checks. No production deployment or all-device guarantee is claimed. The standalone app map describes source snapshot 5668640 and a reference export route; it is not an interactive code-tour record.

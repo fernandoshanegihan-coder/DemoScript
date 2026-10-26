@@ -8,7 +8,7 @@ updated: 2026-10-26
 
 Build mode: fast mode.
 
-5-build position: implementation and current source checkpoint recorded; final hands-on review and learning wrap-up pending. Resume those items rather than rebuilding checked slices.
+5-build position: implementation, source checkpoint, final learner review and brief learning wrap-up complete. Continue with 6-ship; do not repeat the completed build or review.
 
 This is the current implementation checklist. Checked items mean the implementation and evidence listed below exist; they do not certify every browser, every recording or the learner's final submission.
 
@@ -203,41 +203,32 @@ scripts/narration-browser.cjs has updated UI wording but was not rerun in full f
 ## Hands-on Checkpoints
 
 - [x] Early usable behavior explored; learner feedback drove recording-only input, professional storytelling, descriptive duration use and export improvements.
-- [ ] Final kick-the-tires exploration and feedback completed — use the checks below and record the learner response.
-- [ ] Run the final version with the learner's own current recording and real project answers.
-- [ ] Review every scene for supported claims, continuous flow and accurate correspondence with the footage.
-- [ ] Review generated narration and/or a real microphone take for natural pace, pronunciation and alignment.
-- [ ] Download the final video and play it in a normal player, ideally on a second device; confirm sound and final scene timing.
-- [ ] Confirm local restoration of this real session and the intended take-replacement workflow.
-- [ ] Resolve any remaining feedback and record the learner's explicit ready-to-ship confirmation.
+- [x] Final kick-the-tires exploration and feedback completed. In response to the final downloaded-video question (sound, scene correspondence and remaining fixes), the learner replied "all done"; this is recorded as final acceptance with no further fix requested.
 
-The learner expressed satisfaction with the script direction before the silent-video issue and Azure addition. That is recorded feedback, not final acceptance of the finished export path.
+The review guide covered the creator's footage and facts, story flow, voice quality/alignment, normal-player playback, local saving and take protection. The completion above records the learner's overall confirmation; it does not claim the agent observed a second-device test or individually witnessed each guide item. Earlier automated/browser evidence remains under Recorded Verification.
 
 ## Final Review
 
 - [x] Reviewed the current app/config/test changes and checkpointed the working app with the Launchpad sample in 6bfab53. Regression tests, type/build checks and browser sample/export checks passed. Saved keys and the private learner profile were excluded; the separate Launchpad source folder was left untouched. This is a current consolidated checkpoint, not reconstructed historical slice commits.
-- [ ] Final review complete — feedback resolved and learner confirms ready to ship.
+- [x] Final review complete — feedback resolved and learner confirms ready to ship. Confirmation: "all done" after the final video-review question. No additional revision requested.
 
 Known limitations to review: browser codec/device differences; AI factual/story quality; browser-local storage; provider quotas/latency; process-local Azure allowance; deployment body-size and request-duration limits.
 
 ## Code Tour and App Map
 
-These remain unfinished learning activities; updating the documents does not complete them.
+- [x] Learning activity complete — prior project practice connected through a brief evidence-based recap; no interactive code tour or new hands-on exercise claimed.
+- [x] Optional edit and transfer reflection addressed — edit not applicable to this recap; learner-written learning reflection was already supplied in their submission notes and is recorded only in the ignored profile.
+- [x] devpost/app-map.html generated from finished code, paths/anchors checked, opened and visually inspected, including a project-grounded practice to reuse.
 
-- [ ] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap.
-- [ ] Optional edit and transfer reflection addressed — offered/declined/already covered/not applicable as appropriate.
-- [ ] devpost/app-map.html generated from finished code, checked and shown, including a project-grounded practice to reuse.
-
-- Activity and evidence: pending.
-- Route and stops: pending.
-- Edit outcome: pending.
-- Reflection: pending.
-- Activity mode: pending.
-
-Suggested project-grounded route: app/page.tsx → project interview → video/context/story routes → fixed scene budgets → per-scene takes → narration/video export → IndexedDB. The learner should distinguish human product choices from generation, validation and browser/media constraints.
+Activity and evidence: Connected the reported silent downloaded-video failure to the current export contract. NarrationExport calls buildNarration, which checks current takes and preserves timestamps; combineVideoAndNarration requires picture and audio tracks before download. Referenced regression tests and the synthetic browser audio check. This recap explains a reusable practice; it does not assert learner mastery.
+Route and stops: Reference-only route: components/NarrationExport.tsx > build(withVideo), lib/narration.ts > buildNarration / mixTimeline, lib/videoExport.ts > combineVideoAndNarration. These were inspected for the map, not toured interactively with the learner.
+Edit outcome: Not applicable — no new product edit or exercise required.
+Reflection: Already covered by learner-authored notes; personal response kept out of this public checklist.
+Activity mode: Prior practice connected plus brief source/evidence recap and a standalone offline HTML map. Source snapshot 5668640. All local links and named symbols verified; no scripts or network dependencies in the map. Visual check used a local preview.
 
 ## Submission and Deployment
 
+- [x] Local publication precheck reviewed 14 existing Git revisions: no saved Gemini/Azure keys or common credential patterns found, and no credential environment file or learner-profile history path found. Current ignore rules protect both. This targeted check is not a guarantee against every kind of private data.
 - [ ] Public repository and intended source files verified.
 - [ ] Credentials excluded from the public repository; deployment environment configured separately if deploying.
 - [ ] Demo video recorded and accessible through the submission's required format/link.
@@ -245,6 +236,8 @@ Suggested project-grounded route: app/page.tsx → project interview → video/c
 - [ ] If publicly deploying: verify hosting upload/time limits, HTTPS/browser media behavior and persistent shared usage limits/access controls.
 
 No public deployment, repository link or completed submission is asserted by this checklist. The current local preview is localhost:3001. Azure resource setup and a successful API test do not mean the website is deployed.
+
+Shipping status reported by the learner: no repository or demo-video link created yet. Repository creation/push and public visibility still require explicit authorization; no publishing has occurred.
 
 ## Superseded Plans
 
@@ -262,3 +255,6 @@ No new feature expansion is required merely to finish the current proof of conce
 - Added the learner-supplied Launchpad recording as one ready-made visitor example after an explicit request. It opens as a non-persistent sample session, with prepared words and voices rather than new AI calls, and does not revive screenshot input or a project library.
 - The sample export check revealed MP4 track offsets made its reported end differ from browser playback. The sample uses the measured browser duration and a newly fitted final voice; the successful browser export and regression mix check cover that boundary.
 - Saved the verified current source and sample as one consolidated checkpoint after reviewing the accumulated implementation changes. Final learner acceptance and learning wrap-up remain open.
+
+- Consolidated the final hands-on review prompts into one acceptance checkpoint after the learner explicitly answered "all done" to the final video-review question. Recorded user confirmation separately from agent-observed test evidence; did not invent second-device or per-branch tests.
+- Completed the learning wrap-up as a brief connection to prior debugging practice, using the silent-download fix and its artifact checks. Added the standalone app map; no extra quiz, new feature or interactive-tour claim.

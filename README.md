@@ -69,6 +69,8 @@ Automatic narration skips every existing take, including outdated takes. Delete 
 
 Current project documents, synchronized 26 October 2026: [scope](devpost/scope.md), [product requirements](devpost/prd.md), [technical specification](devpost/spec.md) and [build/acceptance checklist](devpost/checklist.md). The checklist separates implemented behavior from final real-recording acceptance, learning wrap-up and submission work. Earlier decisions are preserved in the [archived build history](devpost/archive/build-history-before-2026-10-26-sync.md). The learner profile stays in the local, Git-ignored `devpost/learner-profile.md`.
 
+The standalone [app map](devpost/app-map.html) explains the main pieces and follows video export through three source locations. Open it directly from the project folder to read it offline.
+
 ## Checks
 
 `npm test` runs the timeline and WAV regression tests (Node 24+ for direct TypeScript loading). `npx tsc --noEmit` checks types. `npm run build -- --webpack` builds with Webpack if the default Turbopack process fails on this machine.

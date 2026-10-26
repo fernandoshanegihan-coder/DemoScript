@@ -92,6 +92,6 @@ Possible future work includes caption-file export, richer voice controls, take t
 
 Automated checks and synthetic browser checks have exercised script duration fitting, follow-up continuation, timeline protection and combined video/audio export. The latest recorded implementation check passed 39 regression tests and a production build. A live Azure check generated 9.8625 seconds of narration for a 10-second scene; a browser acceptance fixture produced a 16-second MP4 with AVC video and AAC audio while keeping an existing take.
 
-These are bounded checks, not proof of quality for every recording or device. A final run with the learner's own footage, downloaded-video playback, learning wrap-up and submission packaging remain open in [checklist.md](checklist.md).
+These are bounded checks, not proof of quality for every recording or device. The learner subsequently confirmed final acceptance, and the brief learning recap and app map are recorded in [checklist.md](checklist.md). Public repository/video links and submission packaging remain to be verified.
 
 The earlier build log is preserved in [the archived checklist](archive/build-history-before-2026-10-26-sync.md).
