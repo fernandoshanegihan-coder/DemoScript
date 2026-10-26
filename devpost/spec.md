@@ -192,8 +192,8 @@ Conversions advance together in one-second increments, then finalize. Abort canc
 
 ## Sharing and Submission Links
 
-- Public repository target: https://github.com/fernandoshanegihan-coder/DemoScript — confirmed accessible without authentication on 26 October 2026. It currently contains the initial README only; the application has not been uploaded. Preserve that existing commit when publishing the reviewed local history.
-- The learner explicitly authorized publishing the reviewed local source, sample media and history on 26 October 2026. Upload verification is pending. Secret environment files and the private learner profile are excluded. The separate untracked public/sample-app source folder is not part of the prepared upload.
+- Public repository: https://github.com/fernandoshanegihan-coder/DemoScript — application publication and anonymous access verified on 26 October 2026 at commit d1d2374. The app, Launchpad video/audio sample and app map are present. The existing GitHub initial README commit is preserved in the merged history.
+- The learner explicitly authorized publishing the reviewed local source, sample media and history on 26 October 2026. Secret environment files and the private learner profile are excluded. The separate untracked public/sample-app source folder was not uploaded.
 - Submission demo-video link: not created yet. The Launchpad clip is the app's built-in sample, not a replacement for a video showing DemoScript itself working.
 - Live deployment: optional; not performed or required for the local proof-of-concept demonstration.
 
