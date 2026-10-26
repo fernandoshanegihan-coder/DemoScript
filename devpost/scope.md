@@ -1,90 +1,95 @@
 ---
 doc: scope
 status: approved
+updated: 2026-10-26
 ---
 
-# Demo Script Desk (working name — no name chosen yet)
+# DemoScript
 
-A web app that turns a pile of messy project screenshots — or a three-minute screen recording — plus a hackathon rubric into a demo script with captions, tells you which criteria your demo does not yet prove, and lets you rehearse it and record your own voice over it.
+DemoScript helps people who have a working project but cannot find the words for its demo. It turns a screen recording and the creator's project context into a continuous, descriptive presenter script. The creator can rehearse it, record their own voice or generate Azure narration, and download one video with sound.
 
-## The Unique Kernel
-
-Not the prose. **The red criterion, and the cut.** The app's job is to say "you built something real here and nothing in your video proves it" — and to say "drop this screen, it eats 40 seconds and proves nothing." That is the moment a stranger's eyes are borrowed. Anyone can paste screenshots into a chatbot and get a script; the value is the outside judgment about coverage and overstuffing.
+This revision synchronizes the scope with the implemented app at the learner's request. It does not record a new final review or submission sign-off.
 
 ## Who It's For
 
-A student or hackathon participant at 11pm the night before a deadline. The project works, barely — the last feature was built at 3am. Fourteen tabs are open, the rubric is a PDF they've skimmed twice, and the screenshots are sitting in Downloads as `Screenshot 2026-10-21 at 22.43.png`.
+The main audience is students, hackathon participants and other builders preparing a demonstration. The learner's immediate audience is judges. The same workflow also offers University project, Client pitch and Portfolio presets.
 
-They are not bad at talking. They are too close to their own work to know what a stranger needs to see. They tried recording once, ramble-explained the login page for forty seconds, and deleted it.
+The central problem is finding a clear story, not merely describing interface labels. A useful demo explains what happens, why it matters and how to interpret the result while the corresponding action is on screen.
 
-What they do today instead: wing the recording, go long, then either submit it anyway or give up and skip the video.
+## The Unique Kernel
+
+A professional story grounded in the creator's answers and the recording, fitted to the actual scene durations. Longer scenes receive developed explanations with short natural pauses instead of one-sentence summaries. The opening, example, transitions and payoff should feel like one presentation.
+
+The optional rubric remains useful supporting evidence: it shows criteria that the footage and mapped scenes do or do not demonstrate. Mentioning a criterion in narration is not proof of it. Coverage is an AI-assisted review aid, not a judge's score.
 
 ## The Core Loop
 
-1. Open the app. No signup, no configuration.
-2. Give it material, two ways. Drop in screenshots — messy, out of order, several actions in one image is fine — or capture a one-page project frame by frame. Or press record, click through the project for up to three minutes, and stop.
-3. The app asks whether they have a rubric. If yes, paste it. If no, the criteria panel doesn't appear and the script still works.
-4. For each screenshot the app shows **what it thinks it sees**, for a two-second confirm. Trust matters more than speed here: a confident wrong description at 11pm destroys the tool.
-5. Scenes appear: a spoken line you could actually say out loud, plus a caption. With a recording, each scene is pinned to the moment in the footage it describes. The user sets the target length (1–3 minutes, default 2), and the clock counts toward it. If the rubric states a different required demo time, the app names the mismatch and keeps the user's choice.
-6. A criteria panel shows which rubric items the current script covers, going red to green as scenes are added, cut, or reworded.
-7. With a recording, the clip plays beside the script and the app can run the clock while the current scene is highlighted, so the read can be practised before anything is recorded. When it is ready, the app plays the clip and records the user's own voice over it.
-8. They cut, fix the reds, rehearse, record their voice over the clip, and are done — one video file, no editor.
+1. Upload a screen recording or record the screen in the app. Both paths support up to three minutes; uploads are capped at 250 MiB.
+2. Choose Hackathon, University project, Client pitch or Portfolio, and whether the presenter speaks as I or We.
+3. Answer the required project questions: audience/problem, solution and key demo moments. Difference and takeaway are optional. Paste a rubric if available.
+4. Select **Make my script**. Gemini reads the recording into timestamped visual observations and optional criterion mappings.
+5. If important context is missing, answer up to three focused scene questions before narration is written. Analysis and answers are retained for continuation.
+6. Read a descriptive script that follows the fixed footage. Meaningful scenes explain throughout; shots under three seconds stay silent.
+7. Edit a scene or use its rewrite note. **Expand explanations** improves the connected story using cached observations rather than another video upload.
+8. Rehearse against the actual video clock.
+9. In **Record** mode, record individual voice takes or choose an Azure voice and **Generate missing narration**. Generation skips every existing take.
+10. Select **Create video with narration** and download the combined MP4 or WebM. The separate original recording and aligned narration WAV remain available under **Separate files**.
 
-Why they'd come back: the red list is a to-do list, and it is never empty on the first pass.
+## What Working Looks Like
 
-## Inspiration & Identity
+A person can use a recording from their own project, supply enough factual context, and obtain a script that sounds like a presenter explaining the demonstration rather than a summary of the screen.
 
-Split screen. Thumbnails on the left; scenes with a running clock on the right (e.g. `2:41 / 3:00`), and a small criteria panel going red to green as the script comes together.
+They can hear each take, replace one scene without disturbing the rest, and download a video whose narration starts at the original scene timestamps. Deleted scenes leave silent gaps rather than shifting later speech. Missing, outdated and overlong spoken takes block export until resolved.
 
-The output should read at a glance and sound like a person talking — not a product launch. The tool is glanced at while recording, so the script has to be scannable, not beautiful.
-
-Friction is the enemy: if it asks for much, it loses to just winging the recording.
-
-## Why This Matters to the Learner
-
-The learner wants to understand how agentic coding and skills help developers optimize a workflow, and this project is a direct case study — where a skill changed a decision, where the agent saved time, and what the human still had to decide.
-
-The project itself is about outsourcing judgment: a founder who has lost the outsider's eyes borrowing someone else's.
-
-## What "Working" Looks Like
-
-Someone opens the app, drops in three or four screenshots, pastes a rubric, and within a session has a scene list they can read aloud. On screen, at least one rubric criterion transitions from **red** (unproven) to **green** because they added or reworded a scene.
-
-Or they record three minutes of clicking through their project, get scenes pinned to those moments, rehearse once against the clock, record their own voice over the clip, and download one video file without opening an editor.
-
-The "oh, that's useful" beat: a red criterion sitting next to a screenshot of a feature they spent three days on, with the app saying, in effect, *nothing in this script proves that.*
+The browser saves the current clip, context, pending analysis, script and takes. Saved work can be restored on the same browser origin; it is not a cloud account or project history.
 
 ## The POC Boundary
 
-In:
+In scope:
 
-- Screenshot upload, tolerant of messy and out-of-order input
-- In-app screen capture for projects that only have one page
-- A screen recording of up to three minutes as an alternative input, with scenes pinned to moments in the footage
-- The recording playing beside the script, scenes jumping to their moment
-- Rehearsal: the clock runs while the current scene is highlighted
-- Recording the user's own voice over the clip, producing one downloadable video file
-- Optional rubric paste
-- A confirm step showing what the app read in each screenshot
-- Generated scenes: spoken line plus caption
-- Ordering the scenes into a running script
-- Criteria coverage panel, red to green
-- Copy the script out
-- Clock counted against a length the user sets, with a warning when the rubric disagrees
+- One recording at a time, captured picture only or uploaded from disk.
+- Pause/resume during capture and floating controls where supported.
+- Four audience presets, I/We and a short project interview.
+- Gemini video analysis, fixed scene timings, focused follow-ups and text-only writing retries.
+- Connected descriptive narration targeted at 1.8–2.4 words per second, near 2.1, with brief silent transitions.
+- Scene editing, scene rewrites, whole-story expansion, copy script, optional criterion coverage and advisory cut flags.
+- Rehearsal following the footage.
+- Per-scene microphone takes, WPM/duration feedback and protection of existing audio.
+- Optional server-side Azure TTS: Jenny, Guy and Sonia; actual audio duration checks and bounded speaking-rate adjustment.
+- Browser-local saving through IndexedDB.
+- Aligned mono WAV and one combined video with narration, progress and cancellation.
+- Server-only service credentials and basic process-local Azure usage safeguards.
 
-Out of scope for now: editing or trimming video, multiple voice takes, music, multi-camera work, burned-in captions, accounts, saved history.
+Out of scope:
+
+- Generating footage, a full timeline editor, reordering shots, trimming voice takes, music or burned-in captions.
+- Screenshot input, cached sample projects or multiple input strategies.
+- Accounts, cloud project storage, collaboration and a multi-project library.
+- Gemini, Kokoro or OpenRouter TTS in the current app.
+- Voice cloning or custom voices.
+- Unlimited public usage, guaranteed model latency or automatic scoring of a submission.
+
+## Decisions That Changed During the Build
+
+- The project name is DemoScript; it is no longer an unnamed working title.
+- Recording became the sole input. Earlier screenshot and capture-frame work is historical.
+- Story quality became the main goal. The rubric panel supports the story instead of defining the entire product.
+- The creator interview and focused follow-ups supply context silent footage cannot provide.
+- The video's duration is authoritative. There is no separate 1–3 minute target-length selector.
+- Per-scene takes replaced an all-or-nothing voice pass.
+- Automatic voice is now Azure Speech. Earlier Gemini/Kokoro/OpenRouter narration plans do not describe the current implementation.
+- Combined video export is implemented with Mediabunny in the browser; it is no longer deferred.
+- Takes persist in IndexedDB. They are not intentionally discarded on reload.
+- A take that exceeds its slot is preserved but refused by aligned export; it cannot spill into another scene.
 
 ## Later
 
-- Export to SRT or caption files
-- A library of openings that don't sound like "Hi, I'm excited to present…"
-- Importing a script someone already wrote and auditing *that* against the rubric
-- Retaking one scene's voice instead of the whole pass
+Possible future work includes caption-file export, richer voice controls, take trimming, public-deployment usage controls backed by shared storage, and a project library. These are not prerequisites for the current proof of concept.
 
-## Explicitly Cut
+## Validation and Remaining Work
 
-- **Video generation and video editing.** The app records one silent screen take and one voice pass over it; it does not invent footage, trim, reorder clips, mix music, or burn in captions. *(Revised during the build: the first version also ruled out in-app recording. After slice 3 the learner reversed that — record, rehearse, and add your own voice are now in the POC. Generated narration was planned and then cut in favour of the learner's own voice, which is what a judge expects to hear.)*
-- **Accounts and signup.** Friction; it would lose to winging it.
-- **Configuring the rubric format.** Paste free text or nothing.
-- **Overriding the user's chosen length.** The user's number wins. If the rubric's stated time differs, the app says so instead of silently changing it.
-- **A model-invented description of a screenshot the user can't correct.** The confirm step exists because a confident hallucination at 11pm is worse than no answer.
+Automated checks and synthetic browser checks have exercised script duration fitting, follow-up continuation, timeline protection and combined video/audio export. The latest recorded implementation check passed 36 regression tests and a production build. A live Azure check generated 9.8625 seconds of narration for a 10-second scene; a browser acceptance fixture produced a 16-second MP4 with AVC video and AAC audio while keeping an existing take.
+
+These are bounded checks, not proof of quality for every recording or device. A final run with the learner's own footage, downloaded-video playback, learning wrap-up and submission packaging remain open in [checklist.md](checklist.md).
+
+The earlier build log is preserved in [the archived checklist](archive/build-history-before-2026-10-26-sync.md).

@@ -1,388 +1,202 @@
 ---
 doc: spec
 status: approved
+updated: 2026-10-26
 ---
 
-# DemoScript — Technical Spec
+# DemoScript — Technical Specification
+
+This is the implemented architecture as of 26 October 2026. Product behavior is defined in [prd.md](prd.md); evidence and remaining checks are in [checklist.md](checklist.md).
 
 ## How This Works, In Plain Language
 
-DemoScript is one web page. There is no database and no login.
+The browser holds one recording and the current work. A Next.js server keeps service keys private, sends the recording to Gemini for scene analysis, and uses text-only calls for context questions and narration writing. Optional Azure Speech converts each scene's text into audio. Browser media tools record the user's voice, align all takes and create a video with narration included.
 
-When you drop a screenshot in, the page keeps it in the browser's memory and shows it as a thumbnail. When you press **Make my script**, the page sends your screenshots — plus your notes, your rubric, your tone, and your chosen length — to a small piece of code running on your own laptop. That piece is a **server route**: a file in the project that the browser can call, and the only place your Gemini API key ever lives.
-
-The server route sends each screenshot to Gemini and asks for a fixed-form answer: what it sees, which interface parts it found, and whether it is confident. If the model isn't confident, the app says **"not clear — what does it show?"** instead of inventing something.
-
-Then the server makes one more call with all of that, and gets back a list of scenes (a spoken line, a caption, which screenshot it belongs to, which criteria it covers), plus the parsed criteria. The page drops those into the right column. Editing a scene sends just that scene back for a rewrite.
-
-With a **recording**, the flow is shorter and richer. The browser records the screen with `MediaRecorder`, keeps the clip in this tab (IndexedDB, so a reload doesn't lose it), and uploads it once through Gemini's file API. One call then returns the same scene list, plus the second each scene starts at. The page shows the clip beside the script; clicking a scene seeks the video. A quiet mode strip then runs a rehearsal — the clock ticks and the current scene is highlighted — and when the read is ready, **Add voice** plays the clip and records the microphone over it, redrawing the picture into a canvas so picture and voice leave as one `.webm`.
-
-Nothing is saved anywhere except this browser tab: reload keeps a recording and its script, and closing the tab ends them. There is no account and no server-side storage.
-
-The clock is arithmetic, not AI: the app counts words in the spoken lines and divides by about 2.5 words per second. The cut flags are arithmetic too: a scene that takes a big share of the clock and covers no criterion gets flagged. That keeps the app's two judgment calls cheap and predictable.
-
-Nothing else is saved. Screenshot work is gone on reload; a recording survives it, because three minutes of clicking is too much to lose to a refresh.
-
-## The Core Journey Through the System
-
-`prd.md > The Core Journey`, traced through the pieces:
-
-1. **Open the page** → `app/page.tsx` renders both columns. No data is fetched. The right column is `SkeletonStoryboard.tsx` — ghosted cards and clock, no criteria circles.
-2. **Click "Try it with a sample project"** → `lib/sampleProject.ts` returns a finished storyboard from memory. **No model call.** This is what makes the example instant.
-3. **Drop screenshots** → the browser turns each into a thumbnail and a data URL (the image encoded as text). They sit in page state; nothing is uploaded anywhere yet.
-4. **Or record** → `getDisplayMedia` plus `MediaRecorder` produce a `.webm` blob (max 3:00 of footage, pause/resume with the gap cut, auto-stop). The blob is written to IndexedDB on stop, so a reload restores it without a model call.
-5. **Add notes, reorder, "+ add another action"** → page state only. Order is the scene order.
-6. **Paste a rubric** → page state. Criteria circles still don't appear; they appear after generation parses the text.
-7. **Press "Make my script"** → with screenshots, the browser POSTs to `/api/analyze`; with a recording, it POSTs the blob to `/api/video`.
-8. **`/api/analyze`** → one Gemini call for all images with structured output, `{ analyses: [{ index, description, elements, confident }] }`. Confident results pass through; low-confidence results become the "not clear" prompt.
-9. **`/api/video`** → uploads the clip through the Files API, waits until it is `ACTIVE`, then one call returns `{ criteria, scenes: [{ shotId, startSeconds, spokenLine, caption, covers }] }`. The file is deleted from Gemini afterwards.
-10. **Browser POSTs to `/api/script`** (screenshot path only) → with the descriptions, notes, rubric text, tone, and length.
-11. **`/api/script`** → one Gemini call. Returns `{ criteria: [...], scenes: [...] }`. The route renumbers criterion ids so scenes and panel cannot disagree.
-12. **Page renders the storyboard** → `Storyboard.tsx` and `SceneCard.tsx`. `lib/timing.ts` computes each scene's seconds and the total; `lib/cuts.ts` flags expensive scenes with no criteria coverage. With a recording, `VideoPlayer.tsx` sits above the cards and the timeline marks every scene.
-13. **Rehearse** → `RehearsalPanel` runs a 250 ms interval against the scenes' `seconds`, highlighting the current scene and counting the clock. Pause and stop are local; no media permission is requested.
-14. **Add voice** → `OverdubPanel` gets the microphone, plays the silent clip into a canvas at its own dimensions, records `canvas.captureStream(30)` plus the mic track into one `MediaRecorder`, and offers the finished `.webm` for preview and download. No server call, no upload.
-15. **User edits a scene** → browser POSTs to `/api/script` with a `rewrite` payload. Only that scene changes; rewrites use the lite model so they don't spend the 20/day prose quota.
-16. **Copy** → the page assembles plain text from page state and writes it to the clipboard. No server call.
-
-The key boundary: **images and video leave the browser only when the button is pressed**, and the API key never leaves the server route.
+There is no server project database, cloud media library or login. IndexedDB is local persistence, not a backup service.
 
 ## Stack
 
-| Piece | Choice | Why | Docs |
-|---|---|---|---|
-| Framework | Next.js (App Router), TypeScript | One project holds both the page and the server route that protects the key | https://nextjs.org/docs |
-| Styling | Tailwind CSS | Fast, consistent spacing and color without hand-writing CSS | https://tailwindcss.com/docs |
-| Model | Gemini 3.5 Flash-Lite (analysis) and 3.8 Flash (script), free tier | Vision plus structured output; limits verified and recorded in the checklist | https://ai.google.dev/gemini-api/docs |
-| SDK | `@google/genai` | Official current SDK; handles structured output and file upload | https://googleapis.github.io/js-genai/ |
-| Recording | `getDisplayMedia` + `MediaRecorder` (WebM) | Already used for frame capture; no plugin, no server | https://developer.mozilla.org/docs/Web/API/MediaRecorder |
-| Tab storage | IndexedDB | Holds a 50–150MB clip across reloads without a server | https://developer.mozilla.org/docs/Web/API/IndexedDB_API |
-| Voice pass | canvas + microphone + `MediaRecorder` | One real-time pass gives picture and voice in one file, with no ffmpeg download | https://developer.mozilla.org/docs/Web/API/MediaStream_Recording_API |
-| Runtime | Node 20+ | Local dev server | https://nodejs.org |
+| Area | Current implementation |
+|---|---|
+| App | Next.js 16.4.2 App Router, React 19.3.1, TypeScript |
+| Styling | Tailwind CSS 3.4 and local CSS tokens |
+| Video understanding / writing | @google/genai 2.31.0 |
+| Automatic voice | Azure Speech regional REST API, called only by the server |
+| Audio alignment | Web Audio decoding/resampling, PCM mixing and WAV encoding |
+| Combined video export | Mediabunny 1.62.1 and browser codecs/WebCodecs |
+| Capture | getDisplayMedia, getUserMedia and MediaRecorder |
+| Persistence | IndexedDB, one current session |
+| Verified tool runtime | Node 24.21.0; native TypeScript loading in the test scripts requires Node 24+ |
 
-**Tradeoff accepted:** Next.js is heavier than this app needs. In exchange, the API key stays server-side and there is one command to run.
+Version numbers reflect the installed snapshot; package.json and the lockfile control dependencies. No ffmpeg.wasm, Kokoro, OpenRouter TTS or Gemini TTS is used in the current app.
 
-**Unverified, check first:** whether Gemini's video timestamps land within a second or two on a real recording. It is checked in the first recording slice before the UI depends on it.
+## Runtime, Configuration and Deployment
 
-**Fallback if the free tier is too tight:** OpenRouter's free vision models, behind the same server route. The route's interface doesn't change, so the UI is unaffected.
+Local development: install dependencies, create .env.local from .env.example, set service credentials and run npm run dev. The default URL is http://localhost:3000. The current preview uses http://localhost:3001, started with npm run start -- --port 3001 after building.
 
-## Where It Runs and How Someone Tries It
+Production build: npm run build -- --webpack. The Webpack option has been used successfully on this machine. npm run start serves that built snapshot; source changes require a rebuild/restart. Next's bundled documentation and AGENTS.md apply before framework code changes.
 
-- **Environment:** Node 20+, `GEMINI_API_KEY` in `.env.local` (never committed; already covered by `.gitignore`).
-- **Start:** `npm install`, then `npm run dev`. Open `http://localhost:3000`.
-- **Recording:** the demo video is recorded from this local instance. No deploy is needed for submission.
-- **Deployment:** optional and deferred. Vercel is the natural target if wanted later; it needs the same environment variable set in the project settings.
-- **Repo:** public GitHub repository required at submission, containing the app. `.env.local` must never be committed.
+| Server variable | Purpose |
+|---|---|
+| GEMINI_API_KEY | Required for video analysis, context planning and writing |
+| GEMINI_SCRIPT_MODEL | Optional preferred video-analysis model override |
+| AZURE_SPEECH_KEY | Optional Azure Speech resource key for automatic narration |
+| AZURE_SPEECH_REGION | Region belonging to that key, such as centralindia |
+| AZURE_SPEECH_DAILY_CHAR_LIMIT | Positive character allowance per process per UTC day; defaults to 10000 |
 
-## Look and Feel
+Never use NEXT_PUBLIC_ for service keys. .env.local is ignored by Git. Credential changes require a server restart.
 
-Carried from `prd.md > Look and Feel`:
+A public host must support Node route handlers, streamed responses, uploads and the processing duration needed for video analysis. The video route declares a 300-second maximum and a 250 MiB input cap; a host may impose smaller limits. Azure narration does not require a dedicated GPU server.
 
-- **Palette:** warm off-white background (`#FAF8F5`-ish), near-black text (`#1C1917`), one restrained accent for interactive elements. Red and green are reserved for criteria coverage and warnings — nowhere else, so they always mean something.
-- **Typography:** one humanist sans for the interface, plus a slightly larger, generously leaded setting for spoken lines so they can be read mid-recording. Scene lines are the largest text on the page.
-- **Density:** spacious and calm. Generous padding, few borders, no drop shadows. It should read as a page, not a dashboard.
-- **Copy tone:** plain and direct, second person. "Add a screenshot to start." "This scene eats 40 seconds and proves nothing." No exclamation marks, no marketing register.
-- **Skeleton:** the empty right column is near-watermark contrast; the one explanatory sentence over it is normal contrast. Criteria circles are absent until a rubric exists.
-- **Light only.** No dark mode toggle — it would double the styling work for no demo value.
+Public deployment is not verified. The Azure daily counter is memory-only and per process, resets on restart, and does not provide shared per-user or per-deployment enforcement. Persistent quotas/access controls and host body/time-limit validation remain deployment work. Provider availability and account quotas must be checked in the actual service accounts rather than treated as permanent free-tier guarantees.
 
-## Components
+## Core Journey Through the System
 
-Each maps to a PRD heading.
+1. lib/recorder.ts captures or inspects a clip. Upload and server validation reject durations beyond 180 seconds and uploads above 250 MiB.
+2. app/page.tsx owns recording, script, brief, preset, narrator, takes and pending story state.
+3. POST /api/video receives multipart video, duration, rubric, preset, narrator and brief. Required brief fields are validated.
+4. The server uploads through Gemini's Files API and polls processing, with a 90-second activation deadline. Stage events are streamed as newline-delimited JSON.
+5. Video generation uses the configured preferred model, default gemini-3.8-flash, with gemini-3.5-flash-lite as fallback. generateJson provides bounded model attempts and maps quota/network failures.
+6. Coincident timestamps are merged, complete scenes are sorted with their text/evidence, and timestamps are validated inside the actual clip. One invalid-timing correction can re-read the same uploaded footage.
+7. Scene durations are derived from the next start or clip end. The app does not invent evenly spaced or nudged scene times.
+8. prepareDescriptiveStory checks context through storyPlanner. Missing facts return questions; otherwise storyEditor writes descriptive narration.
+9. A writing failure after successful analysis returns pending evidence with empty final passages and a recoverable writing message. It does not publish the analysis draft as a finished short summary.
+10. The uploaded Gemini file is deleted in a best-effort finally block. Cleanup failure must not be described as guaranteed deletion.
+11. POST /api/story continues from cached scene evidence and answers. It returns questions or ordered narration lines without another video upload.
+12. Record mode creates local microphone takes or requests WAV audio from POST /api/speech. Browser alignment and export then create the final file.
 
-### `UploadColumn` — inputs
-Holds the upload area, thumbnail list, rubric box, tone/length controls, and the "Make my script" button. Owns the disabled state and the "what's missing" line.
-PRD ref: `prd.md > Screens and Layout`, `prd.md > Uploading and arranging screenshots`.
+Structured video timing logs use request IDs and stage durations to distinguish receive, upload, processing, generation, context/writing and cleanup. They do not log service keys.
 
-### `ThumbnailList` — screenshots and their notes
-Numbered thumbnails with drag reorder, a note field per screenshot ("what do you do here?"), and "+ add another action" which appends a second action to the same image. Each action becomes a scene candidate.
+## Script Generation and Timing Rules
 
-**Cap: 6 screenshots.** A seventh is refused with a plain line — "6 at a time — that's already a full 3-minute script" — and the existing six stay untouched. The cap exists to protect the demo from rate limits and long waits, not to limit the product.
-PRD ref: `prd.md > Uploading and arranging screenshots`.
+- A scene stores its absolute start, fixed length, visualDescription, caption, spokenLine and criterion IDs.
+- orderVisualScenes keeps evidence and narration attached to their original timestamp; invalid negative, repeated, non-finite or out-of-clip starts are refused after the bounded correction path.
+- mergeCoincidentScenes combines descriptions and criterion references for identical starts without shifting footage.
+- Shots shorter than three seconds are silent.
+- narrationBudget returns minimum floor(seconds × 1.8), target floor(seconds × 2.1), maximum floor(seconds × 2.4).
+- storyFlowInstruction supplies the whole narrative arc, creator brief, scene evidence and follow-up answers.
+- Whole-story writing uses timedPassages: each requested scene has exact visualEvidence and a spokenWords array with structural item bounds. The model must return individual words, with punctuation attached; accepted arrays are joined into ordinary prose.
+- Runtime validation checks token shape, word counts and evidence. Valid passages remain locked; only rejected indices are requested again, for up to three passes.
+- applyStoryLines validates complete scene coverage and applies text without changing scene boundaries.
+- Single-scene rewrites still use a bounded prose schema and up to three count-check attempts. They receive neighboring narration and context. This is separate from the whole-story word-array writer.
+- Default context, story and rewrite calls use gemini-3.5-flash-lite. The preferred override is not a universal override for every text call.
+- The context planner asks at most three focused questions in one response. Explicit unknown/omit answers are factual constraints, not invitations to invent details.
 
-### `CaptureBar` — frames from the user's own screen
-Two buttons sit under the drop area: "Choose screenshots" and "Capture screenshots." Capture calls `navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })`, keeps the returned stream alive in a ref, and shows a small bar with one "Capture frame" button, a remaining count, and "Stop sharing."
+## API Routes
 
-Where `documentPictureInPicture` is available, that bar opens as a small always-on-top window so the user can stay focused on the project they're demoing; otherwise it renders inside the upload area. The floating window is built with plain DOM and inline styles — it is a separate document, so React handlers and Tailwind classes don't apply there. Its buttons call back into the page's capture and stop functions through refs.
+| Route | Input | Output / responsibilities |
+|---|---|---|
+| /api/video | Multipart recording, duration and project context | NDJSON stage/done/error events; timed observations, criteria, final narration or pending questions/writing state |
+| /api/story | JSON scenes, brief, preset, narrator and contextAnswers | Questions or ordered narration lines; validates 1–40 scenes and bounded timings |
+| /api/script | JSON rewrite request for one scene | spokenLine, caption and normalized covers; preserves prior line on failure |
+| /api/speech | JSON text, seconds and allowlisted voice | audio/wav with X-Audio-Duration, or a safe JSON error |
 
-Each "Capture frame" draws the current video frame to a canvas, encodes a JPEG like an upload, and appends a shot with an empty note. "Stop sharing" stops every track and unmount stops them too. Closing the floating window ends the share. No recording, no audio, no persisted frames.
-PRD ref: `prd.md > Capturing frames from your own screen`.
+The historical /api/analyze and /api/tts routes are absent.
 
-### `Recorder` — three minutes of footage
-"Record screen" calls `getDisplayMedia` and feeds the stream into `MediaRecorder` (`video/webm;codecs=vp9`, no audio track). A ticking strip shows elapsed time, pause/resume, and stop. The 3:00 limit counts recorded footage: `pause()` stops writing frames and `resume()` continues the same file, so the paused stretch is cut and paused time doesn't spend the budget. `MediaRecorder.stop()` is called automatically at the limit. On stop, the blob is written to IndexedDB with its duration, mime type, and capture date, and becomes the active recording. Only one is kept. Recording again replaces it after a confirm.
-PRD ref: `prd.md > Recording your screen`.
+## Components and Responsibilities
 
-### `RecordingBar` — controls over the project
-Where `documentPictureInPicture` is available, the take opens a small always-on-top window with the elapsed time, Pause/Resume, and Stop. It is plain DOM and inline styles, like the capture bar. The point is that pausing never requires switching back to DemoScript — that switch would be recorded. Closing the window leaves the recording running; the in-page strip still has the controls. Browsers without Document Picture-in-Picture use the strip alone.
-PRD ref: `prd.md > Recording your screen`.
+| Component | Responsibility |
+|---|---|
+| UploadColumn / RecordingStrip | Input choice, capture lifecycle, preset/narrator, interview and rubric |
+| ProjectInterview | Three required project answers plus two optional ones |
+| ProgressBar | Stage/status feedback during lengthy operations |
+| StoryQuestions | Focused questions and text-only continuation |
+| VideoPlayer | Clip preview, seeking, scene marks and video-clock updates |
+| Storyboard / SceneCard | Script, editable scene text/caption, evidence, word budget, rewrite, delete and copy |
+| CriteriaPanel / ClockBar | Mapped coverage, cut advice, clip running time and rubric limit |
+| ModeStrip / RehearsalPanel | Script, rehearsal and recording modes; actual-clock rehearsal |
+| VoiceRecordingMode / VoiceScene | Per-scene capture, countdown, playback, deletion, status and WPM |
+| AutomaticNarration | Voice selection, missing-scene generation, stop/resume and existing-take protection |
+| NarrationExport | Aligned WAV, combined video, progress/cancel, preview and separate downloads |
 
-### `RecordingStrip` — the clip in the input column
-While recording: the elapsed time, Pause/Resume, Stop, and the 3:00 limit, with a paused line that says the stretch is cut. When a recording exists: a poster frame, `1:42 of 3:00`, "Record again", "Remove". Removing deletes the IndexedDB entry and clears the script that came from it.
-PRD ref: `prd.md > Screens and Layout`.
+## Data Model and Persistence
 
-### `VideoPlayer` — footage beside the script
-A `<video>` element bound to an object URL from the stored blob, muted. A thin timeline under it marks every scene at its `startSeconds`. Clicking a scene card seeks to that moment and highlights the row that contains the playhead. No trimming, no scrubbing controls beyond the native bar.
-PRD ref: `prd.md > Playing the recording`.
+| Type / store | Important fields |
+|---|---|
+| Recording | blob, mimeType, durationSeconds, posterDataUrl, createdAt |
+| Scene | id, startSeconds, seconds, spokenLine, caption, visualDescription, rewrite description, covers |
+| ProjectBrief | problem, solution, highlights, difference, takeaway |
+| StoryQuestion | id, sceneIndex, question |
+| ContextAnswer | question, answer |
+| PendingStory | analyzed scenes, criteria, questions, current answers, accumulated contextAnswers, writingError |
+| SceneTake | blob, spokenLine snapshot, durationSeconds, source: voice or tts, status, wpm, wpmOutOfRange |
+| StoredSession | recording, scenes, criteria, rubric, preset, narrator, takes, brief, pendingStory, contextAnswers |
 
-### `ModeStrip` — script and rehearsal
-A quiet row above the storyboard, shown only once a script exists: **Script · Rehearse**. Record joins the strip when the voice pass exists; it is not offered before there is something to record. It switches what the right column is doing without leaving the page.
-PRD ref: `prd.md > Rehearsing it`, `prd.md > Recording the screen`.
+lib/sessionStore.ts serializes writes to IndexedDB database demoscript, version 1, store session, key current. app/page.tsx schedules saves after 150 ms and reports saving/saved/failed. Blobs are stored directly; no base64 media store or server database is used.
 
-### `RehearsalPanel` — the clock with eyes
-Takes over the script column while rehearsal runs: the remaining time, the current scene highlighted in place, pause and stop. A 250 ms interval advances the active scene once its `seconds` have elapsed. On stop it reports where the read ended against the chosen length. No camera, no microphone, no storage.
-PRD ref: `prd.md > Rehearsing it`.
+Restoration does not generate a new script or synthesize voice. Browser storage is scoped to origin, including port. Saving may fail; site-data deletion removes the session. Export blobs are cached in component state and rebuilt after reload.
 
-### `RecordPanel` — silent screen take
-Owns the existing recorder strip inside `UploadColumn`: start, elapsed time, pause/resume, stop, the 3:00 auto-stop of recorded footage, the take preview, remove, and replace.
-PRD ref: `prd.md > Recording your screen`.
+## Microphone Capture and Take Protection
 
-### `OverdubPanel` — one voice pass
-With a take, **Add voice** counts 3-2-1, asks for the microphone, and plays the take in a hidden `<video>`. Each frame is drawn into a canvas at the take's dimensions; `canvas.captureStream(30)` plus the mic track feed one `MediaRecorder`, and the result is a single `.webm` with picture and voice. If the tab is hidden, the pass stops and says so; the silent take is untouched. "Try the voice again" replaces the file, never the take.
-PRD ref: `prd.md > Recording your voice over it`.
+MediaRecorder uses supported WebM/Opus or MP4 audio. Capture offers a countdown, analyser-based level meter and timer. Its safety stop is min(180 seconds, max(8 seconds, 2 × scene length)). Finishing replaces only the target scene; cancellation and failed capture preserve the previous blob.
 
-### `RubricBox` — optional criteria
-Free-text area, question-style label, placeholder examples, and a link that fills in the course's own criteria from a constant. Parsing happens on the server, not here.
-PRD ref: `prd.md > The rubric (optional)`.
+SceneTake stores the script text used for capture/generation. Text edits retain audio but make it stale. Replacement of the whole recording/script is guarded when takes exist; deleting a scene removes only its take. A missing take, changed script or overflowing decoded audio blocks aligned export.
 
-### `ToneLengthControls` — tone and clock target
-Segmented control for Professional / Energetic / Storytelling, and a 1–3 minute length control defaulting to 2. Changing length changes the clock's denominator immediately.
-PRD ref: `prd.md > Tone and length`.
+Take status is Too long for any duration beyond the slot, Too short below half the target, otherwise Recorded. WPM outside 110–180 is flagged; it is guidance, not automatic trimming.
 
-### `SkeletonStoryboard` — the promise
-Ghosted scene cards, an empty clock bar labelled `0:00 / 2:00`, and the one normal-contrast explanatory sentence. Includes the "Try it with a sample project" link. No criteria circles.
-PRD ref: `prd.md > Screens and Layout`.
+## Azure Speech
 
-### `Storyboard` / `SceneCard` — the output
-Scene cards in order: thumbnail, spoken line, caption, editable source description, timer chip, covered criteria, and a cut flag when flagged. Editing the description calls the rewrite endpoint for that scene only.
-PRD ref: `prd.md > Reviewing and fixing scenes`, `prd.md > The cut`.
+lib/azureSpeech.ts is used only by the server route. It reads AZURE_SPEECH_KEY and AZURE_SPEECH_REGION and posts SSML to the region's tts.speech.microsoft.com/cognitiveservices/v1 endpoint. The key is sent only as the Azure subscription-key header.
 
-### `CriteriaPanel` — red to green
-One row per parsed criterion. Red with a plain-language explanation of what no scene proves; green when a scene covers it. No scores or percentages.
-PRD ref: `prd.md > The criteria panel`.
+- Voices: en-US-JennyNeural, en-US-GuyNeural, en-GB-SoniaNeural.
+- XML escaping prevents script text from injecting SSML.
+- Input is limited to 4000 text characters and scenes between 3 and 180 seconds. Invalid voices/control characters are refused. Explicit foreign origins are rejected.
+- Output format: riff-24khz-16bit-mono-pcm; responses use Cache-Control: no-store and X-Audio-Duration.
+- WAV chunk parsing measures actual duration, including generated silence.
+- fitSpeech targets approximately 92% of the slot, accepts a fitting natural read, and can adjust synthesis speed within 0.75–1.35 for at most three attempts. A fitting but short read may be accepted at the lower rate bound rather than padded with invented speech.
+- Audio that still overruns is refused with 422; it is not cropped.
+- Each provider fetch has a 40-second timeout and receives the request abort signal.
+- One generation is active per server process; a UTC-day character counter defaults to 10000. Attempts reserve text characters conservatively, including failed provider requests. This is a local guard, not an exact Azure billing meter.
+- Missing/bad configuration, rejected credentials, limits and service errors map to safe messages. Provider response bodies and keys are not forwarded or logged.
+- The client generates sequentially, saves completed takes immediately, skips all existing audio, and rejects late results for changed/deleted scenes.
+- Cancelling aborts the current request and keeps completed takes.
 
-### `ClockBar` — time
-Numerator from `lib/timing.ts`, denominator from the chosen length. Shows the mismatch notice when the rubric names a different required time.
-PRD ref: `prd.md > The clock`, `prd.md > Tone and length`.
+Microsoft documentation: [REST API](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech), [SSML voice controls](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-synthesis-markup-voice). Actual account usage is measured in Azure, not by the in-memory safeguard.
 
-## Data Model
+## Audio Alignment and Combined Export
 
-All interactive data lives in React state in `app/page.tsx`, with one exception: a recording and the script it produced are kept in IndexedDB so a reload does not lose three minutes of work. There is no database, no `localStorage`, and no server-side session. Screenshot work is gone on reload.
+lib/narration.ts decodes each current take, resamples/downmixes through OfflineAudioContext and places samples at absolute scene offsets. The output is 48 kHz mono, 16-bit PCM WAV with the exact requested timeline duration. Missing spoken takes, stale text, overlaps and overflow are refused. Deleted scenes and gaps remain silent.
 
-```ts
-type Shot = {
-  id: string;            // generated in the browser
-  fileName: string;
-  dataUrl: string;       // base64 image, downscaled to max 1600px wide
-  note: string;          // "what do you do here?"
-  actions: Action[];     // one screenshot can produce several scenes
-};
+lib/videoExport.ts uses Mediabunny with two composable conversions: picture from the original recording and audio from the aligned WAV. Original source audio is discarded.
 
-type Action = { id: string; note: string };
+It prefers MP4/AVC/AAC when supported, otherwise WebM with Opus and a supported VP8/VP9/AV1 video path. Compatible picture data may be copied; other inputs may require re-encoding. The app does not promise universal codec support or zero re-encoding.
 
-type Analysis = {
-  shotId: string;
-  description: string;   // "a login form with email, password, green button"
-  elements: string[];    // what the model actually found
-  confident: boolean;    // false → app asks instead of inventing
-};
-
-type Criterion = {
-  id: string;
-  label: string;         // short form for the panel
-  source: string;        // the original line from the rubric
-};
-
-type Scene = {
-  id: string;
-  shotId: string;
-  actionId: string;
-  spokenLine: string;
-  caption: string;
-  description: string;   // editable; correcting it rewrites this scene
-  covers: string[];      // criterion ids
-  seconds: number;       // word-count, or the clip's span for a recording scene
-  startSeconds?: number; // recording path only: where this scene begins
-};
-
-type ScenePatch = Partial<
-  Pick<Scene, "spokenLine" | "caption" | "description" | "covers">
->;
-
-type Recording = {
-  blob: Blob;            // WebM, video only, max 3:00
-  mimeType: string;
-  durationSeconds: number; // recorded footage; paused time excluded
-  posterDataUrl: string; // first frame, for the player and the thumbnail
-  createdAt: number;
-};
-
-type StoredSession = {
-  recording: Recording;
-  scenes: Scene[];
-  criteria: Criterion[];
-  tone: Tone;
-  minutes: number;
-  rubric: string;
-};
-
-type Take = {
-  blob: Blob;            // the voice pass: picture + mic, never uploaded
-  url: string;           // object URL, revoked on replace and unmount
-  seconds: number;
-  mimeType: string;
-};
-```
-
-**Stored only for recordings.** `StoredSession` lives in IndexedDB under one key, so a reload restores the clip and the script together. Screenshot work stays in React state and disappears on reload, as before. Nothing goes to a server.
-
-**Derived, never asked of the model:** `seconds` (word count, or the span between timestamps for a recording) and the cut flag are computed in `lib/timing.ts` and `lib/cuts.ts`. This keeps two of the product's judgment calls deterministic, free, and explainable.
-
-**What happens on leaving and returning:** screenshot work is gone. A recording and its script are restored from IndexedDB, and the voice pass is not stored — a reload means saying it again, which is honest about a file that was never uploaded.
-
-## File Structure
-
-```
-demoscript/
-├── app/
-│   ├── layout.tsx              # shell, fonts, metadata
-│   ├── page.tsx                # the one page; owns all state
-│   ├── globals.css             # Tailwind entry + the few custom tokens
-│   └── api/
-│       ├── analyze/route.ts    # POST: screenshots → descriptions + confidence
-│       ├── video/route.ts      # POST: recording → scenes with timestamps
-│       └── script/route.ts     # POST: everything → criteria + scenes (or one rewrite)
-├── components/
-│   ├── UploadColumn.tsx
-│   ├── Recorder.tsx
-│   ├── RecordingStrip.tsx
-│   ├── CaptureBar.tsx
-│   ├── VideoPlayer.tsx
-│   ├── ModeStrip.tsx
-│   ├── RehearsalPanel.tsx
-│   ├── OverdubPanel.tsx
-│   ├── ThumbnailList.tsx
-│   ├── RubricBox.tsx
-│   ├── ToneLengthControls.tsx
-│   ├── SkeletonStoryboard.tsx
-│   ├── Storyboard.tsx
-│   ├── SceneCard.tsx
-│   ├── CriteriaPanel.tsx
-│   └── ClockBar.tsx
-├── lib/
-│   ├── gemini.ts               # two models, schema-enforced JSON, fallback
-│   ├── prompts.ts              # the exact prompts and response schemas
-│   ├── types.ts                # the types above
-│   ├── timing.ts               # words → seconds
-│   ├── capture.ts              # getDisplayMedia + frame grabbing
-│   ├── recorder.ts             # screen recording, pause/resume, 3:00 of footage
-│   ├── sessionStore.ts         # IndexedDB: clip + script survive a reload
-│   ├── overdub.ts              # canvas + mic → one WebM
-│   ├── floatingBar.ts          # always-on-top capture and recording controls
-│   ├── cuts.ts                 # cut-flag rules
-│   ├── rubric.ts               # time-limit detection
-│   └── sampleProject.ts        # cached example (no model call)
-├── public/
-│   └── sample/                 # sample screenshots used by the sample project
-├── scripts/
-│   └── check-model.mjs         # which models this key can use, and why not
-├── .env.local                  # GEMINI_API_KEY (gitignored)
-├── .env.example                # names only, no secrets
-├── package.json
-├── tsconfig.json
-└── README.md                   # how to run, where the key goes
-```
-
-## External Services and Dependencies
-
-**Gemini API — image analysis**
-
-- SDK: `@google/genai` v2, `ai.models.generateContent({ model, contents, config })`. The key stays in `.env.local`.
-- Model: `gemini-3.5-flash-lite` (free tier: 10 rpm, 500 requests/day per project, verified 23 Oct 2026).
-- One call for **all** screenshots, not one per image: every image goes in as an `inlineData` part, and the response schema is `{ analyses: [{ index, description, elements, confident }] }`. The free tier counts requests per day, and six separate calls is the easiest way to exhaust it before the script is written.
-- Config: `temperature: 0.2`, `thinkingLevel: low`, `responseMimeType: "application/json"`, `responseSchema`, with an explicit instruction that abstaining (`confident: false`) is a valid answer.
-- Cost on free tier: no charge; the daily cap is the real limit.
-
-**Gemini API — script generation**
-
-- Model: `gemini-3.8-flash` (free tier: 5 rpm, **20 requests/day**), falling back to `gemini-3.5-flash-lite` (500/day) when its daily quota is gone, so the app never dead-ends on a quota the student cannot see.
-- Same SDK call, text-only, containing: all descriptions, all notes, rubric text (if any), tone, length, and the instruction set.
-- `responseSchema` for `{ criteria: [{ id, label, source }], scenes: [{ shotId, actionId, spokenLine, caption, covers }] }`.
-- One call for the whole script, not one per scene — fewer calls, fewer chances to fail, and the model can balance time across scenes. The brief asks for roughly one scene per 15 seconds and lets the model reuse a screenshot when there are fewer images than scenes, which is the normal case for a one-page project.
-- Rewrite mode: same endpoint, one scene's context plus its target duration, returning a single scene.
-
-**Gemini API — recording analysis**
-
-- Upload with `ai.files.upload({ file, config: { mimeType } })`, then poll `ai.files.get({ name })` until `state === "ACTIVE"` (a 1–2 minute WebM usually activates in a few seconds).
-- One call with the file plus the rubric text, tone, length, and the same scene brief. Response schema: `{ criteria: [...], scenes: [{ shotId: "video", startSeconds, spokenLine, caption, covers }] }`.
-- Timestamps are the model's estimate, not frame-accurate. The route sorts them, clamps them to the clip's duration, and forces the first to 0. If two scenes land on the same second, the later one is nudged forward by one second.
-- The uploaded file is deleted (`ai.files.delete`) in a `finally`, so nothing is left in the project's file storage.
-- The clip is picture-only, so the model works from the visuals; no transcription step exists.
-- Free-tier cost: one request per generation, ~50–60k tokens for three minutes, well inside the per-minute limit.
-
-**Browser media APIs — the voice pass**
-
-- The silent take plays in a hidden `<video>` (muted, `playsInline`), and each frame is drawn to a canvas at the take's own dimensions, capped at 1280px wide.
-- `canvas.captureStream(30)` supplies the picture; `getUserMedia({ audio: true })` supplies the voice. A new `MediaStream([videoTrack, audioTrack])` is recorded for exactly the take's duration, so the file is in sync with no muxing library.
-- Output: `video/webm;codecs=vp9,opus`. The file is previewed from an object URL, downloaded through a link, and never uploaded.
-- The pass is real time and needs the tab in front. If `visibilitychange` fires during the pass, it stops and says so rather than recording a frozen canvas over live audio.
-- Everything is released on finish, replace, and unmount: tracks stopped, object URLs revoked.
-
-**Time limit detection** — `lib/rubric.ts` looks for a duration in the rubric text (`3 minute`, `2:30`, `180 seconds`, `5 min including Q&A`) with a small set of patterns. If nothing is found, no notice. Deliberately simple; prose like "keep it brief" won't match and shouldn't.
-
-**Documentation:** https://ai.google.dev/gemini-api/docs/image-understanding · https://ai.google.dev/gemini-api/docs/structured-output · https://ai.google.dev/gemini-api/docs/rate-limits
+Conversions advance together in one-second increments, then finalize. Abort cancels conversions/output and disposes inputs. A completed file must have both video and audio tracks. NarrationExport invalidates results when scene, take or recording references change. Separate-file links are secondary and label the original footage as without narration.
 
 ## Important Failure Modes
 
-- **A recording the browser refuses to make** (no display capture, a blocked permission, Safari without MediaRecorder support) → a plain line: "This browser can't record the screen — use Chrome, or drop screenshots instead." The screenshot path stays available.
-- **The always-on-top recording controls can't open** (no Document Picture-in-Picture, or the browser denies the window) → the in-page strip still has pause, resume, and stop; the take is unaffected. Closing the floating window on purpose does not stop the recording.
-- **A clip that never finishes uploading or activating** (slow link, a stuck file state) → a progress line with a cancel; after 90 seconds the app says it can't read the clip right now and leaves it in the tab to retry.
-- **A recording longer than the model can usefully read** → the recorder stops itself at 3:00, so this cannot reach the model. A file dropped in its place is measured first and refused with the same limit.
-- **Timestamps that drift** → scenes still seek, but a scene may land a second or two off. The player is the source of truth and the user can see the moment; there is no per-scene retiming control in the POC.
-- **Microphone refused during a voice pass** → the silent take stays, the panel explains what to allow, and "Add voice" is still there to try again.
-- **The tab is hidden during a voice pass** → the pass stops, says why, and leaves the silent take untouched; it never produces a file with frozen picture.
-- **The voice pass runs long** → it ends when the take ends. There is no trimming and no second track; a mistake means "Try the voice again".
-- **Free-tier rate limit or quota hit** → "Gemini's free quota is used up for now — try again in a minute, or after midnight Pacific if it keeps happening." The user's screenshots and notes stay, and a retry is one click. The script call first tries the better model and falls back to flash-lite, so a used-up daily cap on one model does not block the generation.
-- **A screenshot the model can't read** (blurry, a photo of a phone, a mostly-empty page) → `confident: false` produces "I couldn't read this one — what does it show?" with the note field focused. No invented content.
-- **Generation takes long enough to feel broken** (10–20s with several screenshots) → the right column shows progress in place ("reading screenshot 2 of 4", then "writing scenes"), never a full-screen spinner that hides the layout.
-- **Image too large** → the browser downscales to 1600px wide before sending; if the file isn't an image, it's rejected at drop with a plain line.
-- **Malformed model JSON** → one retry with the same prompt; on a second failure, a plain error and the user's input untouched.
-- **Too many screenshots** → a seventh drop is refused with "6 at a time — that's already a full 3-minute script." Existing screenshots are unaffected.
-- **Screen sharing refused or unavailable** → a plain line in the upload area: "Screen sharing was blocked. Use Choose screenshots instead." Nothing else changes, and no state is lost.
-- **The user ends the share from the browser's own bar** → the stream's `ended` event fires; the capture bar disappears and the buttons return without an error.
+| Failure | Current response |
+|---|---|
+| Unsupported/unreadable/overlong upload | Refuse replacement; preserve current work |
+| Gemini quota or processing failure | Keep clip and report actionable failure |
+| Invalid scene timings | One footage-grounded correction; no invented timing fallback |
+| Missing factual context | Ask focused questions before narration |
+| Writing still invalid | Keep pending observations/answers for text-only continuation |
+| Late rewrite/expansion response | Preserve newer edits |
+| Microphone denied/cancelled | Keep previous take |
+| Azure overrun or quota failure | Keep completed takes and offer shortening/manual recording |
+| Stale/overlong/missing take | Block aligned export |
+| Unsupported export codec | Explain browser limitation; preserve sources |
+| Interrupted export | Cancel safely; source clip and takes remain |
+| IndexedDB failure | Show save warning and warn before leaving |
 
-## What Was Simplified and Why
+## Verification
 
-- **No database or persistence** — everything lives in page state, because the PRD explicitly chose "a reload starts clean." A stored project would add storage and identity for no demo value.
-- **The sample project is a hardcoded constant** (`lib/sampleProject.ts` plus images in `public/sample/`) instead of a real cached model run — it must feel instant, and it's the opening beat of the demo video. It is labeled as a sample in the UI.
-- **Cut flags are computed locally** from time cost and criteria coverage instead of asking the model to judge them — deterministic, free, and explainable in one sentence. **Rule: a scene longer than 15 seconds, or more than 20% of the chosen length, that covers no criterion is flagged.** Both numbers are deliberately conservative so the first flag a user sees is obviously right, and both live in `lib/cuts.ts` for tuning after the sample project.
-- **The clock is word-count arithmetic**, not audio analysis — no audio work belongs in this app.
-- **One generation call for all scenes** instead of a call per scene — fewer rate-limit hits, and the model can distribute time sensibly.
-- **The course's own criteria are a constant**, filled by a link, rather than being fetched from anywhere.
-- **Screen capture shares a window and grabs frames** instead of recording video — the product needs stills with notes, and recording would add permission, storage, and trimming work for no demo value. Captured frames are encoded exactly like uploads.
-- **The voice pass is a real-time canvas re-encode, not a muxer** — ffmpeg in the browser is ~25MB and slow to boot; drawing the take into a canvas and capturing it with the mic gives one synced file with no dependency. The cost is that the pass takes as long as the take and needs the tab in front.
-- **One silent screen take, one voice pass, no editing** — trimming or re-recording by scene would turn this into an editor. "Try the voice again" is the whole retry model.
+Latest recorded checks: 36 regression tests, TypeScript validation during production build, and final Webpack build passed. Synthetic live story tests covered 15-, 30-, 20- and 35-second scenes, missing-context questions and continuation without video.
 
-## Decisions and Open Issues
+Azure connection check: a synthetic 10-second scene produced a 9.8625-second WAV in about two seconds on this machine; this is a sample, not a latency guarantee. Browser acceptance generated one missing voice, kept an existing microphone-source take, skipped a silent transition and downloaded a 16-second MP4 with one AAC audio track and AVC video.
 
-**Learner decisions (agreed in conversation):**
+Commands:
 
-- **Next.js + Tailwind + Gemini** — accepted after being shown that the browser must not hold the API key. Tradeoff: a larger framework than the app needs.
-- **Gemini free tier**, with OpenRouter free models as the documented fallback.
-- **Local only for now**; deployment deferred until after it works, so hosting never blocks the demo video.
-- **The app asks when it can't read a screenshot** — the learner's instruction: if it isn't clear, ask what it is, and say it isn't clear. No guessing.
-- **Tone is the user's choice among three, with Professional preselected** — the learner's resolution of the default-tone question: the user picks. Preselecting one keeps the button usable without an extra decision.
-- **The cut threshold: 15 seconds or 20% of the clock, covering no criterion** — chosen after being shown a short filler scene that would not be flagged; the learner preferred catching real waste over noticing every small thing.
-- **Screenshot cap: 6** — the learner's number, after a mix-up with "6 minutes." The length control stays 1–3 minutes as approved in `prd.md > Tone and length`.
-- **Confirm step after generation** — carried from `prd.md > Product Decisions`.
+    npm test
+    npx tsc --noEmit
+    npm run build -- --webpack
 
-**Implementation choices derived from those decisions:**
+Optional live checks:
 
-- One image call per screenshot with concurrency capped, and one script call per generation.
-- `seconds` and `flaggedCut` computed locally, not by the model.
-- Structured output with a confidence flag and an explicit "unknown" path.
-- The API key is read only inside `app/api/*/route.ts`.
+- scripts/check-descriptive-flow.mjs: synthetic Gemini story/context checks.
+- scripts/check-azure-speech.mjs: synthetic Azure narration, optional WAV output.
+- scripts/video-export-check-server.cjs and its HTML fixture: generated picture/tones, track presence, audible intervals, silent gap, source-audio removal and cancellation.
+- scripts/narration-browser.cjs: browser regression harness; its latest wording is updated, but the full harness was not rerun during the Azure change.
 
-**The genuine uncertainty, discussed and resolved:** the learner's own worry — a model confidently describing a button that isn't there. Clarified with three concrete mechanisms: low temperature, a fixed response schema with a `confident` field, and explicit permission to abstain. The learner's response added a requirement: when it isn't clear, the app asks rather than guesses. **Check during the build:** run one deliberately bad screenshot (a photo of a screen at an angle) and confirm the app asks instead of inventing.
-
-**Open issues:**
-
-1. **Exact model ID and current free-tier limits** — deferred by the learner: decided at the start of the build with one scratch call, before any app code depends on it. Candidate: Gemini 3 Flash on the free tier, with 3.1 Flash-Lite or OpenRouter free vision as fallbacks.
-2. **How reliably prose time limits are detected** — accepted as deliberately simple. If detection misfires on a real rubric, the mismatch notice is wrong but the user's length still wins, so the failure is harmless.
+Temporary acceptance routes have been removed. No production deployment, all-device guarantee or final real-recording acceptance is claimed.
