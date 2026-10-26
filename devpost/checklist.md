@@ -232,13 +232,15 @@ Activity mode: Prior practice connected plus brief source/evidence recap and a s
 - [x] Public repository and intended source files verified anonymously on 26 October 2026 at commit d1d2374: app, Launchpad sample and app map present.
 - [x] Published the authorized app and history to https://github.com/fernandoshanegihan-coder/DemoScript, preserving the existing GitHub README commit.
 - [x] Credentials and private learner profile excluded from publication. Deployment environment configuration remains separate if deploying.
-- [ ] Demo video recorded and accessible through the submission's required format/link.
+- [x] Learner reports the demo video and GitHub preparation complete on 26 October 2026. The local edited video includes original preview sound with no added voiceover in those intervals.
+- [x] Uploaded demo video https://www.youtube.com/watch?v=UTvgLxSsgRI verified signed out: DemoScript, approximately 2:14; playback started without sign-in on 26 October 2026.
+- [ ] Learner confirms video matches the actual submission form's length/format constraints.
 - [ ] Learner writes and completes the actual Devpost fields and required survey.
 - [ ] If publicly deploying: verify hosting upload/time limits, HTTPS/browser media behavior and persistent shared usage limits/access controls.
 
-The app is published in the public repository; the demo-video link and submission remain pending. No public deployment is asserted. The current local preview is localhost:3001. Azure resource setup and a successful API test do not mean the website is deployed.
+The app is published in the public repository, and the uploaded demo-video link plays without sign-in. Required submission fields/survey, exact form constraints and actual submission remain unverified. No public deployment is asserted. The current local preview is localhost:3001. Azure resource setup and a successful API test do not mean the website is deployed.
 
-The learner initially reported no submission links. After GitHub connection, the public DemoScript repository above was discovered with an initial README. The learner subsequently authorized publishing the reviewed code, sample and history. The demo-video link is still missing.
+The learner initially reported no submission links. After GitHub connection, the public DemoScript repository above was discovered with an initial README. The learner subsequently authorized publishing the reviewed code, sample and history, then supplied the verified YouTube demo link above.
 
 ## Superseded Plans
 
